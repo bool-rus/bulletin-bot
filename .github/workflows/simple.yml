@@ -20,7 +20,7 @@ jobs:
       - uses: actions/upload-artifact@v1
         with: 
           name: tinkoff-bot
-          path: target/release/tinkoff-bot
+          path: target/release/bulletin-bot
 
   test:
     name: Test Suite
@@ -34,4 +34,3 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          
