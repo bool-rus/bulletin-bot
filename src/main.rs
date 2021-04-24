@@ -14,10 +14,11 @@ async fn main() {
     let channel = tbot::types::chat::Id(
         std::env::var("CHANNEL_ID").unwrap().parse::<i64>().unwrap()
     );
+    let token = std::env::var("TELEGRAM_BOT_TOKEN").unwrap();
 
     let state = tokio::sync::Mutex::new(HashMap::new());
 
-    let mut bot =  tbot::from_env!("TELEGRAM_BOT_TOKEN").stateful_event_loop(state);
+    let mut bot = tbot::Bot::new(token).stateful_event_loop(state);
 
     bot.command("create", move |ctx, states| async move {
         let chat = ctx.chat.clone();
