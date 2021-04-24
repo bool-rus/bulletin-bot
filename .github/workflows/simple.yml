@@ -19,7 +19,7 @@ jobs:
           args: --release
       - uses: actions/upload-artifact@v1
         with: 
-          name: tinkoff-bot
+          name: bulletin-bot
           path: target/release/bulletin-bot
 
   test:
