@@ -36,8 +36,18 @@ impl<A> Default for State<A> {
     }
 }
 
+pub trait CanFill<A> {
+    fn fill(self, fillable: &mut A);
+}
+
+impl<A,T> CanFill<A> for T where A: FillableFrom<T> {
+    fn fill(self, fillable: &mut A) {
+        fillable.fill_from(self)
+    }
+}
+
 impl <A> State<A>  {
-    pub fn process<T,P>(self, signal: Signal<T>) -> (Self, Response<A>) where T: AsPrice<P>, A: FillableFrom<T> + From<P> {
+    pub fn process<T,P>(self, signal: Signal<T>) -> (Self, Response<A>) where T: AsPrice<P> + CanFill<A>, A: From<P> {
         match (self, signal) {
             (State::Ready, Signal::Fill(_)) => (State::Ready, Response::FirstCreate),
             (State::Ready, Signal::Publish) => (State::Ready, Response::CannotPublish),
@@ -51,7 +61,7 @@ impl <A> State<A>  {
             }
             (State::PriceWaitng, Signal::Publish) => (State::PriceWaitng, Response::CannotPublish),
             (State::Filling(mut ad), Signal::Fill(msg)) => {
-                ad.fill_from(msg);
+                msg.fill(&mut ad);
                 (State::Filling(ad), Response::ContinueFilling)
             }
             (State::Filling(ad), Signal::Publish) => (State::Ready, Response::Publish(ad)),
