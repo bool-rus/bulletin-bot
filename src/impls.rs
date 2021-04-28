@@ -73,6 +73,10 @@ impl Ad {
 
 pub async fn send_response<C: ChatMethods>(channel: tbot::types::chat::Id, ctx: &C, response: Response<Ad>) {
     match response {
+        Response::Banned(cause) => {
+            let msg = format!("Сорян, ты в бане.\nПричина: {}", cause);
+            ctx.send_message(msg.as_str()).call().await;
+        }
         Response::FirstCreate => {ctx.send_message("Сначала скомандуй /create").call().await;},
         Response::PriceRequest => {ctx.send_message( "Назови свою цену").call().await;},
         Response::NotPrice => {ctx.send_message("Это не цена").call().await;},

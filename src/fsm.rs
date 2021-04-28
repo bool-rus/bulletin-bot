@@ -11,6 +11,7 @@ pub enum State<A> {
     Ready,
     PriceWaitng,
     Filling(A),
+    Banned(String),
 }
 
 pub enum Signal<T> {
@@ -28,6 +29,7 @@ pub enum Response<A> {
     WrongMessage,
     CannotPublish,
     Publish(A),
+    Banned(String),
 }
 
 impl<A> Default for State<A> {
@@ -49,6 +51,7 @@ impl<A,T> CanFill<A> for T where A: FillableFrom<T> {
 impl <A> State<A>  {
     pub fn process<T,P>(self, signal: Signal<T>) -> (Self, Response<A>) where T: AsPrice<P> + CanFill<A>, A: From<P> {
         match (self, signal) {
+            (State::Banned(cause), _) => (State::Banned(cause.clone()), Response::Banned(cause)),
             (State::Ready, Signal::Fill(_)) => (State::Ready, Response::FirstCreate),
             (State::Ready, Signal::Publish) => (State::Ready, Response::CannotPublish),
             (_, Signal::Create) => (State::PriceWaitng, Response::PriceRequest),
