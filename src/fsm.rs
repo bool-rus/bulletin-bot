@@ -5,9 +5,9 @@ type FileId = String;
 
 #[derive(Debug, Clone)]
 pub struct Ad {
-    price: Price,
-    text: String,
-    photos: Vec<FileId>,
+    pub price: Price,
+    pub text: String,
+    pub photos: Vec<FileId>,
 }
 impl Ad {
     pub fn new(price: Price) -> Self {
@@ -18,10 +18,16 @@ impl Ad {
         }
     }
     fn fill<T: IncomeMessage>(&mut self, msg: T) {
-        todo!()
+        if let Some(text) = msg.text() {
+            self.text = text;
+        }
+        if let Some(photo) = msg.photo_id() {
+            self.photos.push(photo);
+        }
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum State {
     Ready,
     PriceWaitng,
@@ -37,8 +43,10 @@ pub enum Signal<T> {
     Message(T),
     Publish,
     Ban,
+    Unban,
 }
 
+#[derive(Debug)]
 pub enum Response {
     FirstCreate,
     PriceRequest,
@@ -70,9 +78,16 @@ pub trait IncomeMessage {
     fn author(&self) -> Option<UserId>;
 }
 
+impl IncomeMessage for () {
+    fn text(&self) -> Option<String> { None }
+    fn photo_id(&self) -> Option<String> { None }
+    fn author(&self) -> Option<UserId> { None }
+}
+
 impl State {
     pub fn process<T>(self, signal: Signal<T>) -> (Self, Response) where T: IncomeMessage {
         match (self, signal) {
+            (_, Signal::Unban) => unimplemented!(),
             (State::Banned(cause), _) => (State::Banned(cause.clone()), Response::Banned(cause)),
             (State::WaitForward, Signal::Message(msg)) => {
                 if let Some(user) = msg.author() {
@@ -81,7 +96,11 @@ impl State {
                     (State::WaitForward, Response::WrongMessage)
                 }
             },
-            (State::WaitCause(user_id), Signal::Message(msg)) =>  (State::Ready, Response::Ban(user_id, msg.text().unwrap_or_default())),
+            (State::WaitCause(user_id), Signal::Message(msg)) =>  if let Some(cause) = msg.text() {
+                (State::Ready, Response::Ban(user_id, cause)) 
+            } else {
+                (State::WaitCause(user_id), Response::Empty)
+            }
             (State::Ready, Signal::Message(_)) => (State::Ready, Response::FirstCreate),
             (State::Ready, Signal::Publish) => (State::Ready, Response::CannotPublish),
             (State::PriceWaitng, Signal::Message(msg)) => {
