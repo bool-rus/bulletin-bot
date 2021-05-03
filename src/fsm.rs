@@ -1,26 +1,45 @@
 
-pub trait FillableFrom<T> {
-    fn fill_from(&mut self, item: T);
+type UserId = i64;
+type Price = u32;
+type FileId = String;
+
+#[derive(Debug, Clone)]
+pub struct Ad {
+    price: Price,
+    text: String,
+    photos: Vec<FileId>,
+}
+impl Ad {
+    pub fn new(price: Price) -> Self {
+        Self {
+            price,
+            text: String::new(),
+            photos: Vec::new(),
+        }
+    }
+    fn fill<T: IncomeMessage>(&mut self, msg: T) {
+        todo!()
+    }
 }
 
-pub trait AsPrice<P> {
-    fn as_price(&self) -> Option<P>;
-}
-
-pub enum State<A> {
+pub enum State {
     Ready,
     PriceWaitng,
-    Filling(A),
+    Filling(Ad),
     Banned(String),
+    WaitForward,
+    WaitCause(UserId),
 }
 
 pub enum Signal<T> {
+    Unknown,
     Create,
-    Fill(T),
+    Message(T),
     Publish,
+    Ban,
 }
 
-pub enum Response<A> {
+pub enum Response {
     FirstCreate,
     PriceRequest,
     NotPrice,
@@ -28,46 +47,59 @@ pub enum Response<A> {
     ContinueFilling,
     WrongMessage,
     CannotPublish,
-    Publish(A),
+    Publish(Ad),
+    Ban(UserId, String),
     Banned(String),
+    ForwardMe,
+    SendCause,
+    Empty,
 }
 
-impl<A> Default for State<A> {
+impl Default for State {
     fn default() -> Self {
         Self::Ready
     }
 }
 
-pub trait CanFill<A> {
-    fn fill(self, fillable: &mut A);
-}
-
-impl<A,T> CanFill<A> for T where A: FillableFrom<T> {
-    fn fill(self, fillable: &mut A) {
-        fillable.fill_from(self)
+pub trait IncomeMessage {
+    fn text(&self) -> Option<String>;
+    fn price(&self) -> Option<Price> {
+        self.text()?.parse().ok()
     }
+    fn photo_id(&self) -> Option<String>;
+    fn author(&self) -> Option<UserId>;
 }
 
-impl <A> State<A>  {
-    pub fn process<T,P>(self, signal: Signal<T>) -> (Self, Response<A>) where T: AsPrice<P> + CanFill<A>, A: From<P> {
+impl State {
+    pub fn process<T>(self, signal: Signal<T>) -> (Self, Response) where T: IncomeMessage {
         match (self, signal) {
             (State::Banned(cause), _) => (State::Banned(cause.clone()), Response::Banned(cause)),
-            (State::Ready, Signal::Fill(_)) => (State::Ready, Response::FirstCreate),
+            (State::WaitForward, Signal::Message(msg)) => {
+                if let Some(user) = msg.author() {
+                    (State::WaitCause(user), Response::SendCause)
+                } else {
+                    (State::WaitForward, Response::WrongMessage)
+                }
+            },
+            (State::WaitCause(user_id), Signal::Message(msg)) =>  (State::Ready, Response::Ban(user_id, msg.text().unwrap_or_default())),
+            (State::Ready, Signal::Message(_)) => (State::Ready, Response::FirstCreate),
             (State::Ready, Signal::Publish) => (State::Ready, Response::CannotPublish),
-            (_, Signal::Create) => (State::PriceWaitng, Response::PriceRequest),
-            (State::PriceWaitng, Signal::Fill(msg)) => {
-                if let Some(price) = msg.as_price() {
-                    (State::Filling(price.into()), Response::FillRequest)
+            (State::PriceWaitng, Signal::Message(msg)) => {
+                if let Some(price) = msg.price() {
+                    (State::Filling(Ad::new(price)), Response::FillRequest)
                 } else {
                     (State::PriceWaitng, Response::NotPrice)
                 }
             }
-            (State::PriceWaitng, Signal::Publish) => (State::PriceWaitng, Response::CannotPublish),
-            (State::Filling(mut ad), Signal::Fill(msg)) => {
-                msg.fill(&mut ad);
+            (State::Filling(mut ad), Signal::Message(msg)) => {
+                ad.fill(msg);
                 (State::Filling(ad), Response::ContinueFilling)
             }
+            (_, Signal::Ban) => (State::WaitForward, Response::ForwardMe),
+            (_, Signal::Create) => (State::PriceWaitng, Response::PriceRequest),
             (State::Filling(ad), Signal::Publish) => (State::Ready, Response::Publish(ad)),
+            (state, Signal::Publish) => (state, Response::CannotPublish),
+            (state, Signal::Unknown) => (state, Response::WrongMessage),
         }
     }
 }
