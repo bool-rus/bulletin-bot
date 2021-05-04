@@ -7,11 +7,25 @@ use log::{info, error, warn};
 
 use fsm::*;
 
-use tbot::{Bot, contexts::{fields::{Context, Message}, methods::{Callback, ChatMethods}}, state::StatefulEventLoop};
+use tbot::{Bot, contexts::{fields::{Context, Message}, methods::{Callback, ChatMethods}}, state::StatefulEventLoop, types::keyboard::reply::Button};
 use tokio::sync::Mutex;
 
 type UserId = tbot::types::user::Id;
 type ChannelId = tbot::types::chat::Id;
+
+const CREATE: &'static str = "Новое объявление";
+const PUBLISH: &'static str = "Опубликовать";
+const BAN: &'static str = "Забанить";
+const UNBAN: &'static str = "Амнистировать";
+
+const USER_BUTTONS: &[&[Button]] = &[
+    &[Button::new(CREATE), Button::new(PUBLISH)],
+];
+
+const ADMIN_BUTTONS: &[&[Button]] = &[
+    &[Button::new(CREATE), Button::new(PUBLISH)],
+    &[Button::new(BAN), Button::new(UNBAN)],
+];
 
 struct Storage {
     admins: HashSet<UserId>,
@@ -72,7 +86,14 @@ async fn run_bot(bot: Bot, storage: Storage) {
     bot.text(|msg, storage| async move {
         if is_private(msg.as_ref()) {
             let user = if let Some(u) = msg.from() { u } else {return};
-            let signal = Signal::Message(msg.clone());
+            let text = msg.text.value.as_str();
+            let signal = match text {
+                CREATE => Signal::Create,
+                PUBLISH => Signal::Publish,
+                BAN => Signal::Ban,
+                UNBAN => Signal::Unban,
+                _ => Signal::Message(msg.clone()),
+            };
             let (channel, response) = storage.lock().await.process(user.id, signal);
             impls::do_response(msg, response, channel).await;
         }
@@ -100,18 +121,10 @@ async fn run_bot(bot: Bot, storage: Storage) {
 fn init_help(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
     bot.commands(vec!["help", "start"], |msg, storage| async move {
         let storage = storage.lock().await;
-        let text = if storage.is_admin(msg.as_ref()) {
-            r#"Привет, босс. Доступные команды:
-            /create - запустить создание объявления
-            /publish - опубликовать объявление
-            /ban запретить кому-то публикацю объявлений
-            /unban разбанить пользователя"#
-        } else {
-            r#"Привет, босс. Доступные команды:
-            /create - запустить создание объявления
-            /publish - опубликовать объявление"#
-        };
-        msg.send_message(text).call().await;
+        let is_admin = storage.is_admin(msg.as_ref());
+        let text = "Привет! Воспользуйся кнопками для создания и публикации объявлений";
+        let markup = if is_admin { ADMIN_BUTTONS } else { USER_BUTTONS };
+        msg.send_message(text).reply_markup(markup).call().await;
     });
 }
 

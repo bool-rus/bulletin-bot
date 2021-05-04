@@ -78,7 +78,7 @@ pub async fn do_response<T:Message>(ctx: Arc<T>, response: Response, channel: cr
             let buttons: Vec<_> = buttons_owner.iter().map(|x|x.as_slice()).collect();
             ctx.send_message("Выбери, кого амнистировать:").reply_markup(buttons.as_slice()).call().await;
         }
-        Response::FirstCreate => { ctx.send_message("Сначала скомандуй /create").call().await; } 
+        Response::FirstCreate => { ctx.send_message("Сначала надо создать объявление").call().await; } 
         Response::PriceRequest => { ctx.send_message("Назови свою цену").call().await; }
         Response::NotPrice => { ctx.send_message("Это не цена").call().await; }
         Response::FillRequest => { ctx.send_message("Присылай описание или фотки").call().await; }
