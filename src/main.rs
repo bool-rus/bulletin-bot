@@ -7,7 +7,7 @@ use log::{info, error, warn};
 
 use fsm::*;
 
-use tbot::{Bot, contexts::{fields::{Context, Message}, methods::ChatMethods}, state::StatefulEventLoop};
+use tbot::{Bot, contexts::{fields::{Context, Message}, methods::{Callback, ChatMethods}}, state::StatefulEventLoop};
 use tokio::sync::Mutex;
 
 type UserId = tbot::types::user::Id;
@@ -38,13 +38,23 @@ impl Storage {
             _ => {}
         }
         let conversation = self.conversations.remove(&user).unwrap_or(State::default());
-        let (state, response) = conversation.process(signal);
+        let (state, mut response) = conversation.process(signal);
         if !matches!(state, State::Ready) {
             self.conversations.insert(user, state);
         };
-        match &response {
+        match &mut response {
             Response::Ban(user, cause) => {
                 self.conversations.insert(UserId::from(*user),State::Banned(cause.clone()));
+            }
+            Response::BannedUsers(users) => {
+                users.extend(self.conversations.iter().filter_map(|(&id, state)|{
+                    if matches!(state, State::Banned(..)) {
+                        Some(id.0)
+                    } else { None }
+                }))
+            }
+            Response::Unban(id) => {
+                self.conversations.remove(&UserId::from(*id));
             }
             _ => {}
         }
@@ -74,6 +84,15 @@ async fn run_bot(bot: Bot, storage: Storage) {
             let (channel, response) = storage.lock().await.process(user.id, signal);
             impls::do_response(msg, response, channel).await;
         }
+    });
+    bot.data_callback(|ctx, storage| async move {
+        let user = &ctx.from;
+        let (_, response) = storage.lock().await.process::<()>(user.id, Signal::Select(ctx.data.clone()));
+        let text = match response {
+            Response::Unban(id) => format!("Принято, разбанил {}", impls::invoke_username(&ctx, id).await),
+            _ => "Что-то пошло не так".to_owned(),
+        };
+        ctx.notify(text.as_str()).call().await;
     });
     bot.polling().start().await.unwrap();
 }

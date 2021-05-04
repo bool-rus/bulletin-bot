@@ -35,6 +35,7 @@ pub enum State {
     Banned(String),
     WaitForward,
     WaitCause(UserId),
+    WaitSelectBanned,
 }
 
 pub enum Signal<T> {
@@ -44,6 +45,7 @@ pub enum Signal<T> {
     Publish,
     Ban,
     Unban,
+    Select(String),
 }
 
 #[derive(Debug)]
@@ -60,6 +62,8 @@ pub enum Response {
     Banned(String),
     ForwardMe,
     SendCause,
+    BannedUsers(Vec<UserId>),
+    Unban(UserId),
     Empty,
 }
 
@@ -87,7 +91,12 @@ impl IncomeMessage for () {
 impl State {
     pub fn process<T>(self, signal: Signal<T>) -> (Self, Response) where T: IncomeMessage {
         match (self, signal) {
-            (_, Signal::Unban) => unimplemented!(),
+            (_, Signal::Unban) => (State::WaitSelectBanned, Response::BannedUsers(Vec::new())),
+            (State::WaitSelectBanned, Signal::Select(id)) => if let Ok(id) = id.parse::<UserId>() {
+                (State::Ready, Response::Unban(id))
+            } else {
+                (State::WaitSelectBanned, Response::WrongMessage)
+            },
             (State::Banned(cause), _) => (State::Banned(cause.clone()), Response::Banned(cause)),
             (State::WaitForward, Signal::Message(msg)) => {
                 if let Some(user) = msg.author() {
@@ -116,9 +125,11 @@ impl State {
             }
             (_, Signal::Ban) => (State::WaitForward, Response::ForwardMe),
             (_, Signal::Create) => (State::PriceWaitng, Response::PriceRequest),
+            (State::WaitSelectBanned, _) => (State::Ready, Response::WrongMessage),
             (State::Filling(ad), Signal::Publish) => (State::Ready, Response::Publish(ad)),
             (state, Signal::Publish) => (state, Response::CannotPublish),
             (state, Signal::Unknown) => (state, Response::WrongMessage),
+            (state, Signal::Select(_)) => (state, Response::WrongMessage),
         }
     }
 }
