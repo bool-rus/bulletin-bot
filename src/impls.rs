@@ -1,6 +1,7 @@
 use std::sync::Arc;
-use log::warn;
-use tbot::{contexts::{DataCallback, fields::{AnyText, Callback, Context, Message, Photo}, methods::ChatMethods}, types::{input_file::GroupMedia, parameters::ChatId}};
+use tbot::contexts::fields::{AnyText, Callback, Context, Message, Photo};
+use tbot::types::parameters::ChatId;
+use tbot::contexts::DataCallback;
 
 use super::fsm::*;
 
@@ -80,7 +81,6 @@ async fn publish_ad<T: ContextEx>(ctx: &T, ad: &Ad, chat_id: crate::ChannelId) {
         }).collect();
         photos[0] = photos[0].caption(content);
         let photos: Vec<_> = photos.into_iter().map(Into::into).collect();
-        warn!("photos: {:?}", photos);
         ctx.bot().send_media_group(chat_id, photos.as_slice()).call().await;
     } else {
         ctx.bot().send_message(chat_id, content).call().await;
