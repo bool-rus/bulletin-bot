@@ -126,12 +126,14 @@ fn init_help(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
 }
 
 fn init_commands(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
-    bot.commands(vec!["create","publish"], |ctx, storage| async move {
+    bot.commands(vec!["create","publish", "ban", "unban"], |ctx, storage| async move {
         if is_private(ctx.as_ref()) {
             let user = if let Some(u) = ctx.from() { u } else {return};
             let signal: Signal<()> = match ctx.command.as_str() {
                 "create" => Signal::Create,
                 "publish" => Signal::Publish,
+                "ban" => Signal::Ban,
+                "unban" => Signal::Unban,
                 _ => unreachable!(),
             };
             let (channel, response) = storage.lock().await.process(user.id, signal);
@@ -140,17 +142,6 @@ fn init_commands(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
         }
     });
 
-    bot.commands(vec!["ban","unban"], |ctx, storage| async move {
-        let user = if let Some(u) = ctx.from() { u } else {return};
-        let mut storage = storage.lock().await;
-        let signal: Signal<()> = match ctx.command.as_str() {
-            "ban" => Signal::Ban,
-            "unban" => Signal::Unban,
-            _ => unreachable!(),
-        };
-        let (channel, response) = storage.process(user.id, signal);
-        impls::do_response(ctx.as_ref(), response, channel).await;
-    });
 }
 
 
