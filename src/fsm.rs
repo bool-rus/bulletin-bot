@@ -3,6 +3,9 @@ type UserId = i64;
 type Price = u32;
 type FileId = String;
 
+pub const YES: &str = "y";
+pub const NO: &str = "n";
+
 #[derive(Debug, Clone)]
 pub struct Ad {
     pub price: Price,
@@ -32,6 +35,7 @@ pub enum State {
     Ready,
     PriceWaitng,
     Filling(Ad),
+    Preview(Ad),
     Banned(String),
     WaitForward,
     WaitCause(UserId),
@@ -57,6 +61,7 @@ pub enum Response {
     ContinueFilling,
     WrongMessage,
     CannotPublish,
+    Preview(Ad),
     Publish(Ad),
     Ban(UserId, String),
     Banned(String),
@@ -126,7 +131,13 @@ impl State {
             (_, Signal::Ban) => (State::WaitForward, Response::ForwardMe),
             (_, Signal::Create) => (State::PriceWaitng, Response::PriceRequest),
             (State::WaitSelectBanned, _) => (State::Ready, Response::WrongMessage),
-            (State::Filling(ad), Signal::Publish) => (State::Ready, Response::Publish(ad)),
+            (State::Filling(ad), Signal::Publish) => (State::Preview(ad.clone()), Response::Preview(ad)),
+            (State::Preview(ad), Signal::Select(value)) => match value.as_str() {
+                YES => (State::Ready, Response::Publish(ad)),
+                NO => (State::Filling(ad), Response::ContinueFilling),
+                _ => (State::Preview(ad), Response::WrongMessage),
+            }
+            (State::Preview(ad), _) => (State::Preview(ad), Response::WrongMessage),
             (state, Signal::Publish) => (state, Response::CannotPublish),
             (state, Signal::Unknown) => (state, Response::WrongMessage),
             (state, Signal::Select(_)) => (state, Response::WrongMessage),

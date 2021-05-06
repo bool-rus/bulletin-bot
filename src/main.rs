@@ -8,7 +8,7 @@ use log::{info, error, warn};
 use fsm::*;
 
 use tbot::{Bot, contexts::{fields::{Context, Message}, methods::{Callback, ChatMethods}}, state::StatefulEventLoop, types::keyboard::reply::Button};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, mpsc::channel};
 
 type UserId = tbot::types::user::Id;
 type ChannelId = tbot::types::chat::Id;
@@ -95,7 +95,7 @@ async fn run_bot(bot: Bot, storage: Storage) {
                 _ => Signal::Message(msg.clone()),
             };
             let (channel, response) = storage.lock().await.process(user.id, signal);
-            impls::do_response(msg, response, channel).await;
+            impls::do_response(msg.as_ref(), response, channel).await;
         }
     });
     bot.photo(|msg, storage| async move {
@@ -103,17 +103,14 @@ async fn run_bot(bot: Bot, storage: Storage) {
             let user = if let Some(u) = msg.from() { u } else {return};
             let signal = Signal::Message(msg.clone());
             let (channel, response) = storage.lock().await.process(user.id, signal);
-            impls::do_response(msg, response, channel).await;
+            impls::do_response(msg.as_ref(), response, channel).await;
         }
     });
     bot.data_callback(|ctx, storage| async move {
         let user = &ctx.from;
-        let (_, response) = storage.lock().await.process::<()>(user.id, Signal::Select(ctx.data.clone()));
-        let text = match response {
-            Response::Unban(id) => format!("Принято, разбанил {}", impls::invoke_username(&ctx, id).await),
-            _ => "Что-то пошло не так".to_owned(),
-        };
-        ctx.notify(text.as_str()).call().await;
+        ctx.notify("Принято").call().await;
+        let (channel, response) = storage.lock().await.process::<()>(user.id, Signal::Select(ctx.data.clone()));
+        impls::do_response(ctx.as_ref(), response, channel).await;
     });
     bot.polling().start().await.unwrap();
 }
@@ -139,7 +136,7 @@ fn init_commands(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
             };
             let (channel, response) = storage.lock().await.process(user.id, signal);
             warn!("response: {:?}", response);
-            impls::do_response(msg, response, channel).await;
+            impls::do_response(msg.as_ref(), response, channel).await;
         }
     });
 
@@ -152,7 +149,7 @@ fn init_commands(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
             _ => unreachable!(),
         };
         let (channel, response) = storage.process(user.id, signal);
-        impls::do_response(msg, response, channel).await;
+        impls::do_response(msg.as_ref(), response, channel).await;
     });
 }
 
