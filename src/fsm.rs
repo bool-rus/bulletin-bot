@@ -43,7 +43,6 @@ pub enum State {
 }
 
 pub enum Signal<T> {
-    Unknown,
     Create,
     Message(T),
     Publish,
@@ -139,7 +138,6 @@ impl State {
             }
             (State::Preview(ad), _) => (State::Preview(ad), Response::WrongMessage),
             (state, Signal::Publish) => (state, Response::CannotPublish),
-            (state, Signal::Unknown) => (state, Response::WrongMessage),
             (state, Signal::Select(_)) => (state, Response::WrongMessage),
         }
     }

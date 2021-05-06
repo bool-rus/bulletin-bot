@@ -83,13 +83,11 @@ async fn publish_ad<T: ContextEx>(ctx: &T, ad: &Ad, chat_id: crate::ChannelId) {
         warn!("photos: {:?}", photos);
         ctx.bot().send_media_group(chat_id, photos.as_slice()).call().await;
     } else {
-        let mut msg = ctx.bot().send_message(chat_id, content);
-        //msg.reply_markup(markup);
-        msg.call().await;
+        ctx.bot().send_message(chat_id, content).call().await;
     }
 }
 
-struct User {
+pub struct User {
     id: tbot::types::user::Id,
     first_name: String,
     last_name: Option<String>,
@@ -105,7 +103,7 @@ impl From<&tbot::types::User> for User {
     }
 }
 
-trait MyMessage: Message {}
+pub trait MyMessage: Message {}
 impl MyMessage for tbot::contexts::Text {}
 impl MyMessage for tbot::contexts::Photo {}
 impl MyMessage for tbot::contexts::Command<tbot::contexts::Text> {}
@@ -183,7 +181,7 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
             bot.send_message(chat_id, "Все верно?").reply_markup(markup).call().await;
         }
         Response::Publish(ad) => { publish_ad(ctx, &ad, channel).await }  
-        Response::Ban(user_id, cause) => { bot.send_message(chat_id, "Принято, больше не нахулиганит").call().await; }
+        Response::Ban(_, _) => { bot.send_message(chat_id, "Принято, больше не нахулиганит").call().await; }
         Response::Banned(cause) => { bot.send_message(chat_id, format!("Сорян, ты в бане.\nПричина: {}", cause).as_str()).call().await; }
         Response::ForwardMe => { bot.send_message(chat_id, "Пересылай объявление с нарушением").call().await; }
         Response::SendCause => { bot.send_message(chat_id, "Укажи причину бана").call().await; }

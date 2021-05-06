@@ -1,14 +1,11 @@
 mod fsm;
 mod impls;
 
-use std::{cell::Cell, collections::{HashMap, HashSet}, fmt::format, sync::{Arc}};
-
-use log::{info, error, warn};
+use std::collections::{HashMap, HashSet};
 
 use fsm::*;
-
-use tbot::{Bot, contexts::{fields::{Context, Message}, methods::{Callback, ChatMethods}}, state::StatefulEventLoop, types::keyboard::reply::Button};
-use tokio::sync::{Mutex, mpsc::channel};
+use tbot::{Bot, contexts::fields::Message, prelude::*, state::StatefulEventLoop};
+use tokio::sync::Mutex;
 
 type UserId = tbot::types::user::Id;
 type ChannelId = tbot::types::chat::Id;
@@ -18,14 +15,20 @@ const PUBLISH: &'static str = "Опубликовать";
 const BAN: &'static str = "Забанить";
 const UNBAN: &'static str = "Амнистировать";
 
-const USER_BUTTONS: &[&[Button]] = &[
-    &[Button::new(CREATE), Button::new(PUBLISH)],
-];
+mod buttons {
+    use tbot::types::keyboard::reply::Button;
 
-const ADMIN_BUTTONS: &[&[Button]] = &[
-    &[Button::new(CREATE), Button::new(PUBLISH)],
-    &[Button::new(BAN), Button::new(UNBAN)],
-];
+    use super::*;
+    pub const USER_BUTTONS: &[&[Button]] = &[
+        &[Button::new(CREATE), Button::new(PUBLISH)],
+    ];
+
+    pub const ADMIN_BUTTONS: &[&[Button]] = &[
+        &[Button::new(CREATE), Button::new(PUBLISH)],
+        &[Button::new(BAN), Button::new(UNBAN)],
+    ];
+}
+use buttons::*;
 
 struct Storage {
     admins: HashSet<UserId>,
@@ -137,7 +140,6 @@ fn init_commands(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
                 _ => unreachable!(),
             };
             let (channel, response) = storage.lock().await.process(user.id, signal);
-            warn!("response: {:?}", response);
             impls::do_response(ctx.as_ref(), response, channel).await;
         }
     });
