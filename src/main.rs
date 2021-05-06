@@ -83,27 +83,27 @@ async fn run_bot(bot: Bot, storage: Storage) {
     let mut bot = bot.stateful_event_loop(storage);
     init_help(&mut bot);
     init_commands(&mut bot);
-    bot.text(|msg, storage| async move {
-        if is_private(msg.as_ref()) {
-            let user = if let Some(u) = msg.from() { u } else {return};
-            let text = msg.text.value.as_str();
+    bot.text(|ctx, storage| async move {
+        if is_private(ctx.as_ref()) {
+            let user = if let Some(u) = ctx.from() { u } else {return};
+            let text = ctx.text.value.as_str();
             let signal = match text {
                 CREATE => Signal::Create,
                 PUBLISH => Signal::Publish,
                 BAN => Signal::Ban,
                 UNBAN => Signal::Unban,
-                _ => Signal::Message(msg.clone()),
+                _ => Signal::Message(ctx.clone()),
             };
             let (channel, response) = storage.lock().await.process(user.id, signal);
-            impls::do_response(msg.as_ref(), response, channel).await;
+            impls::do_response(ctx.as_ref(), response, channel).await;
         }
     });
-    bot.photo(|msg, storage| async move {
-        if is_private(msg.as_ref()) {
-            let user = if let Some(u) = msg.from() { u } else {return};
-            let signal = Signal::Message(msg.clone());
+    bot.photo(|ctx, storage| async move {
+        if is_private(ctx.as_ref()) {
+            let user = if let Some(u) = ctx.from() { u } else {return};
+            let signal = Signal::Message(ctx.clone());
             let (channel, response) = storage.lock().await.process(user.id, signal);
-            impls::do_response(msg.as_ref(), response, channel).await;
+            impls::do_response(ctx.as_ref(), response, channel).await;
         }
     });
     bot.data_callback(|ctx, storage| async move {
@@ -116,40 +116,40 @@ async fn run_bot(bot: Bot, storage: Storage) {
 }
 
 fn init_help(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
-    bot.commands(vec!["help", "start"], |msg, storage| async move {
+    bot.commands(vec!["help", "start"], |ctx, storage| async move {
         let storage = storage.lock().await;
-        let is_admin = storage.is_admin(msg.as_ref());
+        let is_admin = storage.is_admin(ctx.as_ref());
         let text = "Привет! Воспользуйся кнопками для создания и публикации объявлений";
         let markup = if is_admin { ADMIN_BUTTONS } else { USER_BUTTONS };
-        msg.send_message(text).reply_markup(markup).call().await;
+        ctx.send_message(text).reply_markup(markup).call().await;
     });
 }
 
 fn init_commands(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
-    bot.commands(vec!["create","publish"], |msg, storage| async move {
-        if is_private(msg.as_ref()) {
-            let user = if let Some(u) = msg.from() { u } else {return};
-            let signal: Signal<()> = match msg.command.as_str() {
+    bot.commands(vec!["create","publish"], |ctx, storage| async move {
+        if is_private(ctx.as_ref()) {
+            let user = if let Some(u) = ctx.from() { u } else {return};
+            let signal: Signal<()> = match ctx.command.as_str() {
                 "create" => Signal::Create,
                 "publish" => Signal::Publish,
                 _ => unreachable!(),
             };
             let (channel, response) = storage.lock().await.process(user.id, signal);
             warn!("response: {:?}", response);
-            impls::do_response(msg.as_ref(), response, channel).await;
+            impls::do_response(ctx.as_ref(), response, channel).await;
         }
     });
 
-    bot.commands(vec!["ban","unban"], |msg, storage| async move {
-        let user = if let Some(u) = msg.from() { u } else {return};
+    bot.commands(vec!["ban","unban"], |ctx, storage| async move {
+        let user = if let Some(u) = ctx.from() { u } else {return};
         let mut storage = storage.lock().await;
-        let signal: Signal<()> = match msg.command.as_str() {
+        let signal: Signal<()> = match ctx.command.as_str() {
             "ban" => Signal::Ban,
             "unban" => Signal::Unban,
             _ => unreachable!(),
         };
         let (channel, response) = storage.process(user.id, signal);
-        impls::do_response(msg.as_ref(), response, channel).await;
+        impls::do_response(ctx.as_ref(), response, channel).await;
     });
 }
 
