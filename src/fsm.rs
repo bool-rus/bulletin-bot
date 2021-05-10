@@ -80,7 +80,9 @@ impl Default for State {
 pub trait IncomeMessage {
     fn text(&self) -> Option<String>;
     fn price(&self) -> Option<Price> {
-        self.text()?.parse().ok()
+        let mut text = self.text()?;
+        text.retain(|c|!c.is_whitespace());
+        text.parse().ok()
     }
     fn photo_id(&self) -> Option<String>;
     fn author(&self) -> Option<UserId>;
