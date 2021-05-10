@@ -71,7 +71,7 @@ async fn publish_ad<T: ContextEx>(ctx: &T, ad: &Ad, chat_id: crate::ChannelId) {
     let price = ad.price.to_formatted_string(&Locale::ru);
     let text = markdown_v2((
         ad.text.as_str(),
-        "\nЦена ", bold(price.as_str()), " ₽\n",
+        "\n\n", bold(price.as_str()), " ₽\n",
          "Прислано ", 
          mention(name.as_str(), ctx.chat_id().0.into())
     )).to_string();
