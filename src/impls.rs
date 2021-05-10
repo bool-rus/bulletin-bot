@@ -169,7 +169,7 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
         Response::PriceRequest => { bot.send_message(chat_id, "Назови свою цену").call().await; }
         Response::NotPrice => { bot.send_message(chat_id, "Это не цена").call().await; }
         Response::FillRequest => { bot.send_message(chat_id, "Присылай описание или фотки").call().await; }
-        Response::ContinueFilling => { bot.send_message(chat_id, "Что-то еще?").call().await; }
+        Response::ContinueFilling => { bot.send_message(chat_id, "Теперь можешь заменить описание или добавить фото").call().await; }
         Response::WrongMessage => { bot.send_message(chat_id, "Что-то не то присылаешь").call().await; }
         Response::CannotPublish => { bot.send_message(chat_id, "Пока не могу опубликовать").call().await; }
         Response::Preview(ad) => { 
