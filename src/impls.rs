@@ -59,6 +59,7 @@ pub async fn invoke_username(bot: &tbot::Bot, id: i64) -> String {
 async fn publish_ad<T: ContextEx>(ctx: &T, ad: &Ad, chat_id: crate::ChannelId) {
     use tbot::markup::*;
     use tbot::types::parameters::Text;
+    use num_format::{ToFormattedString, Locale};
     let name = if let Some(user) = ctx.from_user() {
         let first = user.first_name.clone();
         user.last_name.as_ref().map(|second|{
@@ -67,7 +68,7 @@ async fn publish_ad<T: ContextEx>(ctx: &T, ad: &Ad, chat_id: crate::ChannelId) {
     } else {
         "анон".to_owned()
     };
-    let price = ad.price.to_string();
+    let price = ad.price.to_formatted_string(&Locale::ru);
     let text = markdown_v2((
         ad.text.as_str(),
         "\nЦена ", bold(price.as_str()), " ₽\n",

@@ -12,3 +12,5 @@ tokio = { version = "0.2", features = ["macros"] }
 
 log = "0.4"
 simplelog = "0.10"
+
+num-format = "0.4.0"
