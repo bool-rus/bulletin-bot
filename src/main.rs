@@ -30,6 +30,8 @@ mod buttons {
 }
 use buttons::*;
 
+use crate::impls::LoggableErrorResult;
+
 struct Storage {
     admins: HashSet<UserId>,
     channel: ChannelId,
@@ -111,7 +113,7 @@ async fn run_bot(bot: Bot, storage: Storage) {
     });
     bot.data_callback(|ctx, storage| async move {
         let user = &ctx.from;
-        ctx.notify("Принято").call().await;
+        ctx.notify("Принято").call().await.ok_or_log();
         let (channel, response) = storage.lock().await.process::<()>(user.id, Signal::Select(ctx.data.clone()));
         impls::do_response(ctx.as_ref(), response, channel).await;
     });
@@ -124,7 +126,7 @@ fn init_help(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
         let is_admin = storage.is_admin(ctx.as_ref());
         let text = "Привет! Воспользуйся кнопками для создания и публикации объявлений";
         let markup = if is_admin { ADMIN_BUTTONS } else { USER_BUTTONS };
-        ctx.send_message(text).reply_markup(markup).call().await;
+        ctx.send_message(text).reply_markup(markup).call().await.ok_or_log();
     });
 }
 
