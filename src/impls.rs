@@ -5,6 +5,22 @@ use tbot::contexts::DataCallback;
 
 use super::fsm::*;
 
+pub trait LoggableErrorResult<T> {
+    fn ok_or_log(self) -> Option<T>;
+}
+
+impl<T,E: std::fmt::Debug> LoggableErrorResult<T> for Result<T,E> {
+    fn ok_or_log(self) -> Option<T> {
+        match self  {
+            Ok(obj) => Some(obj),
+            Err(e) => {
+                log::error!("{:?}", e);
+                None
+            }
+        }
+    }
+}
+
 impl IncomeMessage for Arc<tbot::contexts::Text> {
     fn text(&self) -> Option<String> {
         Some(self.text.value.to_owned())
@@ -82,9 +98,9 @@ async fn publish_ad<T: ContextEx>(ctx: &T, ad: &Ad, chat_id: crate::ChannelId) {
         }).collect();
         photos[0] = photos[0].caption(content);
         let photos: Vec<_> = photos.into_iter().map(Into::into).collect();
-        ctx.bot().send_media_group(chat_id, photos.as_slice()).call().await;
+        ctx.bot().send_media_group(chat_id, photos.as_slice()).call().await.ok_or_log();
     } else {
-        ctx.bot().send_message(chat_id, content).call().await;
+        ctx.bot().send_message(chat_id, content).call().await.ok_or_log();
     }
 }
 
@@ -146,7 +162,7 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
     match response {
         Response::Unban(id) => {
             let text = format!("Принято, разбанил {}", invoke_username(bot, id).await);
-            bot.send_message(chat_id, text.as_str()).call().await;
+            bot.send_message(chat_id, text.as_str()).call().await.ok_or_log();
         }
         Response::BannedUsers(ids) => {
             use tbot::types::keyboard::inline::{Button, ButtonKind};
@@ -163,15 +179,15 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
                 vec![Button::new(name.as_str(), ButtonKind::CallbackData(id.as_str()))]
             }).collect();
             let buttons: Vec<_> = buttons_owner.iter().map(|x|x.as_slice()).collect();
-            bot.send_message(chat_id, "Выбери, кого амнистировать:").reply_markup(buttons.as_slice()).call().await;
+            bot.send_message(chat_id, "Выбери, кого амнистировать:").reply_markup(buttons.as_slice()).call().await.ok_or_log();
         }
-        Response::FirstCreate => { bot.send_message(chat_id, "Сначала надо создать объявление").call().await; } 
-        Response::PriceRequest => { bot.send_message(chat_id, "Назови свою цену").call().await; }
-        Response::NotPrice => { bot.send_message(chat_id, "Это не цена").call().await; }
-        Response::FillRequest => { bot.send_message(chat_id, "Присылай описание или фотки").call().await; }
-        Response::ContinueFilling => { bot.send_message(chat_id, "Теперь можешь заменить описание или добавить фото").call().await; }
-        Response::WrongMessage => { bot.send_message(chat_id, "Что-то не то присылаешь").call().await; }
-        Response::CannotPublish => { bot.send_message(chat_id, "Пока не могу опубликовать").call().await; }
+        Response::FirstCreate => { bot.send_message(chat_id, "Сначала надо создать объявление").call().await.ok_or_log(); } 
+        Response::PriceRequest => { bot.send_message(chat_id, "Назови свою цену").call().await.ok_or_log(); }
+        Response::NotPrice => { bot.send_message(chat_id, "Это не цена").call().await.ok_or_log(); }
+        Response::FillRequest => { bot.send_message(chat_id, "Присылай описание или фотки").call().await.ok_or_log(); }
+        Response::ContinueFilling => { bot.send_message(chat_id, "Теперь можешь заменить описание или добавить фото").call().await.ok_or_log(); }
+        Response::WrongMessage => { bot.send_message(chat_id, "Что-то не то присылаешь").call().await.ok_or_log(); }
+        Response::CannotPublish => { bot.send_message(chat_id, "Пока не могу опубликовать").call().await.ok_or_log(); }
         Response::Preview(ad) => { 
             publish_ad(ctx, &ad, chat_id).await;
             use tbot::types::keyboard::inline::{Button, ButtonKind};
@@ -179,13 +195,13 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
                 Button::new("Да", ButtonKind::CallbackData(YES)),
                 Button::new("Нет", ButtonKind::CallbackData(NO)),
             ]];
-            bot.send_message(chat_id, "Все верно?").reply_markup(markup).call().await;
+            bot.send_message(chat_id, "Все верно?").reply_markup(markup).call().await.ok_or_log();
         }
         Response::Publish(ad) => { publish_ad(ctx, &ad, channel).await }  
-        Response::Ban(_, _) => { bot.send_message(chat_id, "Принято, больше не нахулиганит").call().await; }
-        Response::Banned(cause) => { bot.send_message(chat_id, format!("Сорян, ты в бане.\nПричина: {}", cause).as_str()).call().await; }
-        Response::ForwardMe => { bot.send_message(chat_id, "Пересылай объявление с нарушением").call().await; }
-        Response::SendCause => { bot.send_message(chat_id, "Укажи причину бана").call().await; }
+        Response::Ban(_, _) => { bot.send_message(chat_id, "Принято, больше не нахулиганит").call().await.ok_or_log(); }
+        Response::Banned(cause) => { bot.send_message(chat_id, format!("Сорян, ты в бане.\nПричина: {}", cause).as_str()).call().await.ok_or_log(); }
+        Response::ForwardMe => { bot.send_message(chat_id, "Пересылай объявление с нарушением").call().await.ok_or_log(); }
+        Response::SendCause => { bot.send_message(chat_id, "Укажи причину бана").call().await.ok_or_log(); }
         Response::Empty => {  }
     }
 }
