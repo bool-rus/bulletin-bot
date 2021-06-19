@@ -1,10 +1,9 @@
 
+use serde::{Serialize,Deserialize};
+
 type UserId = i64;
 type Price = u32;
 type FileId = String;
-
-pub const YES: &str = "y";
-pub const NO: &str = "n";
 
 #[derive(Debug, Clone)]
 pub struct Ad {
@@ -42,13 +41,22 @@ pub enum State {
     WaitSelectBanned,
 }
 
+#[derive(Serialize,Deserialize)]
+pub enum CallbackResponse {
+    #[serde(rename="y")]
+    Yes,
+    #[serde(rename="n")]
+    No,
+    User(i64),
+}
+
 pub enum Signal<T> {
     Create,
     Message(T),
     Publish,
     Ban,
     Unban,
-    Select(String),
+    Select(CallbackResponse),
 }
 
 #[derive(Debug)]
@@ -98,11 +106,7 @@ impl State {
     pub fn process<T>(self, signal: Signal<T>) -> (Self, Response) where T: IncomeMessage {
         match (self, signal) {
             (_, Signal::Unban) => (State::WaitSelectBanned, Response::BannedUsers(Vec::new())),
-            (State::WaitSelectBanned, Signal::Select(id)) => if let Ok(id) = id.parse::<UserId>() {
-                (State::Ready, Response::Unban(id))
-            } else {
-                (State::WaitSelectBanned, Response::WrongMessage)
-            },
+            (State::WaitSelectBanned, Signal::Select(CallbackResponse::User(id))) =>  (State::Ready, Response::Unban(id)),
             (State::Banned(cause), _) => (State::Banned(cause.clone()), Response::Banned(cause)),
             (State::WaitForward, Signal::Message(msg)) => {
                 if let Some(user) = msg.author() {
@@ -133,9 +137,9 @@ impl State {
             (_, Signal::Create) => (State::PriceWaitng, Response::PriceRequest),
             (State::WaitSelectBanned, _) => (State::Ready, Response::WrongMessage),
             (State::Filling(ad), Signal::Publish) => (State::Preview(ad.clone()), Response::Preview(ad)),
-            (State::Preview(ad), Signal::Select(value)) => match value.as_str() {
-                YES => (State::Ready, Response::Publish(ad)),
-                NO => (State::Filling(ad), Response::ContinueFilling),
+            (State::Preview(ad), Signal::Select(value)) => match value {
+                CallbackResponse::Yes => (State::Ready, Response::Publish(ad)),
+                CallbackResponse::No => (State::Filling(ad), Response::ContinueFilling),
                 _ => (State::Preview(ad), Response::WrongMessage),
             }
             (State::Preview(ad), _) => (State::Preview(ad), Response::WrongMessage),

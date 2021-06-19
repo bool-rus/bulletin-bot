@@ -113,9 +113,19 @@ async fn run_bot(bot: Bot, storage: Storage) {
     });
     bot.data_callback(|ctx, storage| async move {
         let user = &ctx.from;
-        ctx.notify("Принято").call().await.ok_or_log();
-        let (channel, response) = storage.lock().await.process::<()>(user.id, Signal::Select(ctx.data.clone()));
-        impls::do_response(ctx.as_ref(), response, channel).await;
+        let callback = ron::from_str(ctx.data.as_str());
+        match callback {
+            Ok(callback) => {
+                ctx.notify("Принято").call().await.ok_or_log();
+                let (channel, response) = storage.lock().await.process::<()>(user.id, Signal::Select(callback));
+                impls::do_response(ctx.as_ref(), response, channel).await;
+            },
+            Err(e) => {
+                log::error!("{:?}", e);
+                ctx.notify("Упс... что-то пошло не так").call().await.ok_or_log();
+            },
+        }
+        
     });
     bot.polling().start().await.unwrap();
 }
