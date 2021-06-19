@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use tbot::contexts::fields::{AnyText, Callback, Context, Message, Photo};
+use tbot::errors;
 use tbot::types::parameters::ChatId;
 use tbot::contexts::DataCallback;
 
@@ -72,13 +73,13 @@ pub async fn invoke_username(bot: &tbot::Bot, id: i64) -> String {
     }).unwrap_or(format!("Unknown({})", id))
 }
 
-async fn publish_ad<T: ContextEx>(ctx: &T, ad: &Ad, chat_id: crate::ChannelId) {
+async fn publish_ad<T: ContextEx>(ctx: &T, ad: &Ad, chat_id: crate::ChannelId) -> Result<Vec<tbot::types::Message>, errors::MethodCall> {
     use tbot::markup::*;
     use tbot::types::parameters::Text;
     use num_format::{ToFormattedString, Locale};
     let name = if let Some(user) = ctx.from_user() {
         let first = user.first_name.clone();
-        user.last_name.as_ref().map(|second|{
+        user.last_name.as_ref().map(|second|{ 
             format!("{} {}", first, second)
         }).unwrap_or(first)
     } else {
@@ -98,9 +99,9 @@ async fn publish_ad<T: ContextEx>(ctx: &T, ad: &Ad, chat_id: crate::ChannelId) {
         }).collect();
         photos[0] = photos[0].caption(content);
         let photos: Vec<_> = photos.into_iter().map(Into::into).collect();
-        ctx.bot().send_media_group(chat_id, photos.as_slice()).call().await.ok_or_log();
+        ctx.bot().send_media_group(chat_id, photos.as_slice()).call().await
     } else {
-        ctx.bot().send_message(chat_id, content).call().await.ok_or_log();
+        ctx.bot().send_message(chat_id, content).call().await.map(|m|vec![m])
     }
 }
 
@@ -173,7 +174,7 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
                     let user = user.user;
                     format!("{} {}", user.first_name, user.last_name.unwrap_or_default())
                 }).unwrap_or(format!("Unknown({})", id));
-                users.push((user, id.to_string()));
+                users.push((user, ron::to_string(&CallbackResponse::User(id)).unwrap()));
             }
             let buttons_owner: Vec<_> = users.iter().map(|(name, id)|{
                 vec![Button::new(name.as_str(), ButtonKind::CallbackData(id.as_str()))]
@@ -189,15 +190,17 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
         Response::WrongMessage => { bot.send_message(chat_id, "Что-то не то присылаешь").call().await.ok_or_log(); }
         Response::CannotPublish => { bot.send_message(chat_id, "Пока не могу опубликовать").call().await.ok_or_log(); }
         Response::Preview(ad) => { 
-            publish_ad(ctx, &ad, chat_id).await;
+            publish_ad(ctx, &ad, chat_id).await.ok_or_log();
             use tbot::types::keyboard::inline::{Button, ButtonKind};
+            let yes = ron::to_string(&CallbackResponse::Yes).unwrap();
+            let no = ron::to_string(&CallbackResponse::No).unwrap();
             let markup: &[&[Button]] = &[&[
-                Button::new("Да", ButtonKind::CallbackData(YES)),
-                Button::new("Нет", ButtonKind::CallbackData(NO)),
+                Button::new("Да", ButtonKind::CallbackData(yes.as_str())),
+                Button::new("Нет", ButtonKind::CallbackData(no.as_str())),
             ]];
             bot.send_message(chat_id, "Все верно?").reply_markup(markup).call().await.ok_or_log();
         }
-        Response::Publish(ad) => { publish_ad(ctx, &ad, channel).await }  
+        Response::Publish(ad) => { publish_ad(ctx, &ad, channel).await.ok_or_log(); }  
         Response::Ban(_, _) => { bot.send_message(chat_id, "Принято, больше не нахулиганит").call().await.ok_or_log(); }
         Response::Banned(cause) => { bot.send_message(chat_id, format!("Сорян, ты в бане.\nПричина: {}", cause).as_str()).call().await.ok_or_log(); }
         Response::ForwardMe => { bot.send_message(chat_id, "Пересылай объявление с нарушением").call().await.ok_or_log(); }
