@@ -186,11 +186,10 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
         Response::PriceRequest => { bot.send_message(chat_id, "Назови свою цену").call().await.ok_or_log(); }
         Response::NotPrice => { bot.send_message(chat_id, "Это не цена").call().await.ok_or_log(); }
         Response::FillRequest => { bot.send_message(chat_id, "Присылай описание или фотки").call().await.ok_or_log(); }
-        Response::ContinueFilling => { bot.send_message(chat_id, "Теперь можешь заменить описание или добавить фото").call().await.ok_or_log(); }
+        Response::ContinueFilling => { bot.send_message(chat_id, "Теперь можешь заменить описание или добавить фото (не более 10)").call().await.ok_or_log(); }
         Response::WrongMessage => { bot.send_message(chat_id, "Что-то не то присылаешь").call().await.ok_or_log(); }
         Response::CannotPublish => { bot.send_message(chat_id, "Пока не могу опубликовать").call().await.ok_or_log(); }
-        Response::Preview(ad) => { 
-            publish_ad(ctx, &ad, chat_id).await.ok_or_log();
+        Response::Preview(ad) => if let Some(_) = publish_ad(ctx, &ad, chat_id).await.ok_or_log() {
             use tbot::types::keyboard::inline::{Button, ButtonKind};
             let yes = ron::to_string(&CallbackResponse::Yes).unwrap();
             let no = ron::to_string(&CallbackResponse::No).unwrap();
@@ -199,7 +198,9 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
                 Button::new("Нет", ButtonKind::CallbackData(no.as_str())),
             ]];
             bot.send_message(chat_id, "Все верно?").reply_markup(markup).call().await.ok_or_log();
-        }
+        } else {
+            bot.send_message(chat_id, "Не удалось подготовить объявление. Возможно, слишком много фото").call().await.ok_or_log();
+        },
         Response::Publish(ad) => { 
             if let Some(msgs) = publish_ad(ctx, &ad, channel).await.ok_or_log() {
                 use tbot::types::keyboard::inline::{Button, ButtonKind};
