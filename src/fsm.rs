@@ -2,6 +2,7 @@
 use serde::{Serialize,Deserialize};
 
 type UserId = i64;
+type MessageId = u32;
 type Price = u32;
 type FileId = String;
 
@@ -47,7 +48,8 @@ pub enum CallbackResponse {
     Yes,
     #[serde(rename="n")]
     No,
-    User(i64),
+    User(UserId),
+    Remove(Vec<MessageId>),
 }
 
 pub enum Signal<T> {
@@ -76,6 +78,7 @@ pub enum Response {
     SendCause,
     BannedUsers(Vec<UserId>),
     Unban(UserId),
+    Remove(Vec<MessageId>),
     Empty,
 }
 
@@ -106,6 +109,7 @@ impl State {
     pub fn process<T>(self, signal: Signal<T>) -> (Self, Response) where T: IncomeMessage {
         match (self, signal) {
             (_, Signal::Unban) => (State::WaitSelectBanned, Response::BannedUsers(Vec::new())),
+            (state, Signal::Select(CallbackResponse::Remove(msg))) => (state, Response::Remove(msg)),
             (State::WaitSelectBanned, Signal::Select(CallbackResponse::User(id))) =>  (State::Ready, Response::Unban(id)),
             (State::Banned(cause), _) => (State::Banned(cause.clone()), Response::Banned(cause)),
             (State::WaitForward, Signal::Message(msg)) => {
