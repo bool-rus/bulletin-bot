@@ -200,11 +200,28 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
             ]];
             bot.send_message(chat_id, "Все верно?").reply_markup(markup).call().await.ok_or_log();
         }
-        Response::Publish(ad) => { publish_ad(ctx, &ad, channel).await.ok_or_log(); }  
+        Response::Publish(ad) => { 
+            if let Some(msgs) = publish_ad(ctx, &ad, channel).await.ok_or_log() {
+                use tbot::types::keyboard::inline::{Button, ButtonKind};
+                let data = ron::to_string(&CallbackResponse::Remove(
+                    msgs.into_iter().map(|msg|msg.id.0).collect()
+                )).unwrap();
+                let markup: &[&[Button]] = &[&[
+                    Button::new("Снять с публикации", ButtonKind::CallbackData(data.as_str())),
+                ]];
+                bot.send_message(chat_id, "Объявление опубликовано").reply_markup(markup).call().await.ok_or_log();
+            }
+        }  
         Response::Ban(_, _) => { bot.send_message(chat_id, "Принято, больше не нахулиганит").call().await.ok_or_log(); }
         Response::Banned(cause) => { bot.send_message(chat_id, format!("Сорян, ты в бане.\nПричина: {}", cause).as_str()).call().await.ok_or_log(); }
         Response::ForwardMe => { bot.send_message(chat_id, "Пересылай объявление с нарушением").call().await.ok_or_log(); }
         Response::SendCause => { bot.send_message(chat_id, "Укажи причину бана").call().await.ok_or_log(); }
+        Response::Remove(msgs) => {
+            for id in msgs {
+                bot.delete_message(channel, id.into()).call().await.ok_or_log();
+            } //TODO: возможно, здесь нужно обработать исключения... или нет... посмотрим по логам.
+            bot.send_message(chat_id, "Объявление удалено").call().await.ok_or_log();
+        },
         Response::Empty => {  }
     }
 }
