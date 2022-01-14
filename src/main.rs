@@ -4,6 +4,7 @@ mod impls;
 use std::collections::{HashMap, HashSet};
 
 use fsm::*;
+use impls::ContextEx;
 use tbot::{Bot, contexts::fields::Message, prelude::*, state::StatefulEventLoop};
 use tokio::sync::Mutex;
 
@@ -84,13 +85,20 @@ impl Storage {
 
 
 async fn run_bot(bot: Bot, storage: Storage) {
+    let channel = storage.channel;
     let storage = Mutex::new(storage);
     let mut bot = bot.stateful_event_loop(storage);
     init_help(&mut bot);
     init_commands(&mut bot);
-    bot.text(|ctx, storage| async move {
+
+    bot.text(move |ctx, storage| async move {
         if is_private(ctx.as_ref()) {
             let user = if let Some(u) = ctx.from() { u } else {return};
+            if ctx.bot().get_chat_member(channel, user.id).call().await.is_err() {
+                ctx.send_message("Ты не с нами. Уходи.").call().await.ok_or_log();
+                return
+            }
+
             let text = ctx.text.value.as_str();
             let signal = match text {
                 CREATE => Signal::Create,
