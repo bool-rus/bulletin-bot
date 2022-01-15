@@ -1,7 +1,7 @@
 mod fsm;
 mod impls;
 
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, sync::Arc};
 
 use fsm::*;
 use impls::ContextEx;
@@ -89,25 +89,35 @@ async fn run_bot(bot: Bot, storage: Storage) {
     let storage = Mutex::new(storage);
     let mut bot = bot.stateful_event_loop(storage);
     init_help(&mut bot);
-    init_commands(&mut bot);
 
+    bot.commands(vec!["create","publish", "ban", "unban"], move |ctx, storage| async move {
+        if is_private(ctx.as_ref()) {
+            let user_id = ctx.chat_id().0.into();
+            let signal: Signal<()> = match ctx.command.as_str() {
+                "create" => Signal::Create,
+                "publish" => if validate_user(ctx.clone(), channel).await { Signal::Publish} 
+                    else { return },
+                "ban" => Signal::Ban,
+                "unban" => Signal::Unban,
+                _ => unreachable!(),
+            };
+            let (channel, response) = storage.lock().await.process(user_id, signal);
+            impls::do_response(ctx.as_ref(), response, channel).await;
+        }
+    });
     bot.text(move |ctx, storage| async move {
         if is_private(ctx.as_ref()) {
-            let user = if let Some(u) = ctx.from() { u } else {return};
-            if ctx.bot().get_chat_member(channel, user.id).call().await.is_err() {
-                ctx.send_message("Ты не с нами. Уходи.").call().await.ok_or_log();
-                return
-            }
-
+            let user_id = ctx.chat_id().0.into();
             let text = ctx.text.value.as_str();
             let signal = match text {
                 CREATE => Signal::Create,
-                PUBLISH => Signal::Publish,
+                PUBLISH => if validate_user(ctx.clone(), channel).await { Signal::Publish} 
+                    else { return },
                 BAN => Signal::Ban,
                 UNBAN => Signal::Unban,
                 _ => Signal::Message(ctx.clone()),
             };
-            let (channel, response) = storage.lock().await.process(user.id, signal);
+            let (channel, response) = storage.lock().await.process(user_id, signal);
             impls::do_response(ctx.as_ref(), response, channel).await;
         }
     });
@@ -140,32 +150,27 @@ async fn run_bot(bot: Bot, storage: Storage) {
 
 fn init_help(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
     bot.commands(vec!["help", "start"], |ctx, storage| async move {
-        let storage = storage.lock().await;
-        let is_admin = storage.is_admin(ctx.as_ref());
+        let is_admin = storage.lock().await.is_admin(ctx.as_ref());
         let text = "Привет! Воспользуйся кнопками для создания и публикации объявлений";
         let markup = if is_admin { ADMIN_BUTTONS } else { USER_BUTTONS };
         ctx.send_message(text).reply_markup(markup).call().await.ok_or_log();
     });
 }
 
-fn init_commands(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
-    bot.commands(vec!["create","publish", "ban", "unban"], |ctx, storage| async move {
-        if is_private(ctx.as_ref()) {
-            let user = if let Some(u) = ctx.from() { u } else {return};
-            let signal: Signal<()> = match ctx.command.as_str() {
-                "create" => Signal::Create,
-                "publish" => Signal::Publish,
-                "ban" => Signal::Ban,
-                "unban" => Signal::Unban,
-                _ => unreachable!(),
-            };
-            let (channel, response) = storage.lock().await.process(user.id, signal);
-            impls::do_response(ctx.as_ref(), response, channel).await;
+async fn validate_user<T: ContextEx>(ctx: Arc<T>, channel: ChannelId) -> bool {
+    match ctx.bot().get_chat_member(channel, ctx.chat_id().0.into()).call().await {
+        Err(err) => {
+            log::error!("some trouble on cheking user is member {:?}", err);
+            true
+        },
+        Ok(member) if !member.status.is_left() && !member.status.is_kicked() => true,
+        Ok(member) => {
+            ctx.bot().send_message(ctx.chat_id(), "Ты не с нами. Уходи.").call().await.ok_or_log();
+            log::warn!("user is not a member: {:?}", member);
+            false
         }
-    });
-
+    }
 }
-
 
 fn is_private<T: Message>(msg: &T) -> bool {
     match msg.chat().kind {
