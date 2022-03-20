@@ -205,12 +205,13 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
             if let Some(msgs) = publish_ad(ctx, &ad, channel).await.ok_or_log() {
                 use tbot::types::keyboard::inline::{Button, ButtonKind};
                 let data = ron::to_string(&CallbackResponse::Remove(
-                    msgs.into_iter().map(|msg|msg.id.0).collect()
+                    msgs.iter().map(|msg|msg.id.0).collect()
                 )).unwrap();
                 let markup: &[&[Button]] = &[&[
                     Button::new("Снять с публикации", ButtonKind::CallbackData(data.as_str())),
                 ]];
-                bot.send_message(chat_id, "Объявление опубликовано").reply_markup(markup).call().await.ok_or_log();
+                bot.send_message(chat_id, "Объявление опубликовано:").reply_markup(markup).call().await.ok_or_log();
+                bot.forward_message(chat_id, channel, msgs[0].id).call().await.ok_or_log();
             }
         }  
         Response::Ban(_, _) => { bot.send_message(chat_id, "Принято, больше не нахулиганит").call().await.ok_or_log(); }
