@@ -183,8 +183,8 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
             bot.send_message(chat_id, "Выбери, кого амнистировать:").reply_markup(buttons.as_slice()).call().await.ok_or_log();
         }
         Response::FirstCreate => { bot.send_message(chat_id, "Сначала надо создать объявление").call().await.ok_or_log(); } 
-        Response::PriceRequest => { bot.send_message(chat_id, "Назови свою цену").call().await.ok_or_log(); }
-        Response::NotPrice => { bot.send_message(chat_id, "Это не цена").call().await.ok_or_log(); }
+        Response::PriceRequest => { bot.send_message(chat_id, "Назови свою цену (число) в рублях").call().await.ok_or_log(); }
+        Response::NotPrice => { bot.send_message(chat_id, "Это не цена, нужно прислать число").call().await.ok_or_log(); }
         Response::FillRequest => { bot.send_message(chat_id, "Присылай описание или фотки").call().await.ok_or_log(); }
         Response::ContinueFilling => { bot.send_message(chat_id, "Теперь можешь заменить описание или добавить фото (не более 10)").call().await.ok_or_log(); }
         Response::WrongMessage => { bot.send_message(chat_id, "Что-то не то присылаешь").call().await.ok_or_log(); }
@@ -210,8 +210,8 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
                 let markup: &[&[Button]] = &[&[
                     Button::new("Снять с публикации", ButtonKind::CallbackData(data.as_str())),
                 ]];
-                bot.send_message(chat_id, "Объявление опубликовано:").reply_markup(markup).call().await.ok_or_log();
                 bot.forward_message(chat_id, channel, msgs[0].id).call().await.ok_or_log();
+                bot.send_message(chat_id, "Объявление опубликовано").reply_markup(markup).call().await.ok_or_log();
             }
         }  
         Response::Ban(_, _) => { bot.send_message(chat_id, "Принято, больше не нахулиганит").call().await.ok_or_log(); }
