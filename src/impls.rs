@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::sync::Arc;
 use tbot::contexts::fields::{AnyText, Callback, Context, Message, Photo};
 use tbot::errors;
@@ -219,10 +220,30 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
         Response::ForwardMe => { bot.send_message(chat_id, "Пересылай объявление с нарушением").call().await.ok_or_log(); }
         Response::SendCause => { bot.send_message(chat_id, "Укажи причину бана").call().await.ok_or_log(); }
         Response::Remove(msgs) => {
-            for id in msgs {
-                bot.delete_message(channel, id.into()).call().await.ok_or_log();
-            } //TODO: возможно, здесь нужно обработать исключения... или нет... посмотрим по логам.
-            bot.send_message(chat_id, "Объявление удалено").call().await.ok_or_log();
+            let mut re_count = 0;
+            let mut need_repeat = false;
+            for id in msgs.as_slice() {
+                match bot.delete_message(channel, (*id).into()).call().await {
+                    Ok(_) => {},
+                    Err(e) => {
+                        log::error!("cannot delete ad: {:?}", e);
+                        if e.is_request_error() {
+                            re_count += 1;
+                        } else {
+                            need_repeat = true;
+                            break;
+                        }
+                    },
+                }
+            } 
+            let message = if need_repeat {
+                "Что-то пошло не так. Попробуйте снова через некоторое время."
+            } else if re_count < msgs.len() {
+                "Объявление удалено."
+            } else {
+                "Не удалось удалить объявление. Объявление слишком старое или уже удалено."
+            };
+            bot.send_message(chat_id, message).call().await.ok_or_log(); 
         },
         Response::Empty => {  }
     }
