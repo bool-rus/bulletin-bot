@@ -83,8 +83,18 @@ impl Storage {
     
 }
 
+async fn set_commands(bot: &Bot) {
+    use tbot::types::parameters::BotCommand;
+    let commands = [
+        BotCommand::new("help", "Помощь"),
+        BotCommand::new("create", "Начать создание объявления"),
+        BotCommand::new("publish", "Опубликовать объявление"),
+    ];
+    bot.set_my_commands(commands.as_slice()).call().await.ok_or_log();
+}
 
 async fn run_bot(bot: Bot, storage: Storage) {
+    set_commands(&bot).await;
     let channel = storage.channel;
     let storage = Mutex::new(storage);
     let mut bot = bot.stateful_event_loop(storage);
@@ -151,7 +161,19 @@ async fn run_bot(bot: Bot, storage: Storage) {
 fn init_help(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
     bot.commands(vec!["help", "start"], |ctx, storage| async move {
         let is_admin = storage.lock().await.is_admin(ctx.as_ref());
-        let text = "Привет! Воспользуйся кнопками для создания и публикации объявлений";
+        let text = 
+        "Привет!
+Чтобы начать создание объявления - используй кнопку [Новое объявление] или команду /create
+Я предложу наполнить объявление текстом или фото. При этом новый текст будет заменять предыдущий, а не дополнять.
+Также у Телеграм есть ограничение на 10 фото в одном сообщении, поэтому не получится опубликовать объявление \
+с большим количеством фото.
+Удалять фото нельзя, поэтому, если случайно добавлено не то фото, следует начать создание объявления заново.
+Чтобы опубликовать объявление - используй кнопку [Опубликовать] или команду /publish
+Перед публикацией я создам макет объявления и предложу подтвердить публикацию. Если все ок - жми [Да].
+Тогда я опубликую объявление в канале и перешлю его тебе. Таким образом из этого чата можно провалиться в свою \
+публикацию и почитать комментарии.
+Помимо этого я пришлю сообщение об успешной публикации с кнопкой удаления объявления. \
+К сожалению, Телеграм не позволяет ботам удалять сообщения старше 48 часов.";
         let markup = if is_admin { ADMIN_BUTTONS } else { USER_BUTTONS };
         ctx.send_message(text).reply_markup(markup).call().await.ok_or_log();
     });
