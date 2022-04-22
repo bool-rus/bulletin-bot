@@ -89,7 +89,7 @@ async fn publish_ad<T: ContextEx>(ctx: &T, ad: &Ad, chat_id: crate::ChannelId) -
     let price = ad.price.to_formatted_string(&Locale::ru);
     let text = markdown_v2((
         ad.text.as_str(),
-        "\n\n", bold(price.as_str()), " ₽\n",
+        "\n\n", bold(price.as_str()), " ₾\n",
          "Прислано ", 
          mention(name.as_str(), ctx.chat_id().0.into())
     )).to_string();
@@ -184,7 +184,7 @@ pub async fn do_response<T: ContextEx>(ctx: &T, response: Response, channel: cra
             bot.send_message(chat_id, "Выбери, кого амнистировать:").reply_markup(buttons.as_slice()).call().await.ok_or_log();
         }
         Response::FirstCreate => { bot.send_message(chat_id, "Сначала надо создать объявление").call().await.ok_or_log(); } 
-        Response::PriceRequest => { bot.send_message(chat_id, "Назови свою цену (число) в рублях").call().await.ok_or_log(); }
+        Response::PriceRequest => { bot.send_message(chat_id, "Назови свою цену (число) в лари").call().await.ok_or_log(); }
         Response::NotPrice => { bot.send_message(chat_id, "Это не цена, нужно прислать число").call().await.ok_or_log(); }
         Response::FillRequest => { bot.send_message(chat_id, "Присылай описание или фотки").call().await.ok_or_log(); }
         Response::ContinueFilling => { bot.send_message(chat_id, "Теперь можешь заменить описание или добавить фото (не более 10)").call().await.ok_or_log(); }
