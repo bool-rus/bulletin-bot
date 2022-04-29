@@ -1,6 +1,6 @@
 use std::default;
 
-use teloxide::{dispatching::dialogue, types::{User, ParseMode}};
+use teloxide::{dispatching::dialogue, types::{User, ParseMode, InlineKeyboardMarkup, InlineKeyboardButton}, payloads::SendMessageSetters};
 
 use super::{*, impls::make_ad_text};
 use teloxide::prelude::*;
@@ -37,14 +37,14 @@ pub fn make_dialogue_handler() -> Handler<'static, DependencyMap, FSMResult, tel
         .branch(teloxide::handler![State::PriceWaitng].endpoint(on_price_waiting))
         .branch(teloxide::handler![State::Filling(ad)].endpoint(on_filling))
         .branch(teloxide::handler![State::WaitForward].endpoint(on_wait_forward))
-        .branch(teloxide::handler![State::WaitCause(user_id)].endpoint(on_wait_forward))
+        .branch(teloxide::handler![State::WaitCause(user_id)].endpoint(on_wait_cause))
         .endpoint(send_need_command)
     ).branch(
         dptree::filter_map(Signal::filter_command)
         .endpoint(on_command)
     ).branch(
         dptree::filter_map(Signal::filter_callback)
-        .endpoint(on_callback)
+        .branch(teloxide::handler![State::Preview(ad)].endpoint(on_accept))
     )
 }
 
@@ -119,7 +119,11 @@ async fn on_publish(
 ) -> FSMResult {
     match dialogue.get().await?.unwrap_or_default() {
         State::Filling(ad) => {
-            bot.send_message(dialogue.chat_id(), make_ad_text(user, &ad)).parse_mode(ParseMode::MarkdownV2).await?;
+            bot.send_message(dialogue.chat_id(), make_ad_text(user, &ad)).parse_mode(ParseMode::MarkdownV2)
+            .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
+                InlineKeyboardButton::callback("Да".to_owned(), ron::to_string(&CallbackResponse::Yes)?),
+                InlineKeyboardButton::callback("Нет".to_owned(), ron::to_string(&CallbackResponse::No)?),
+            ])).await?;
             dialogue.update(State::Preview(ad)).await?;
         },
         State::Preview(_) => {
@@ -134,6 +138,26 @@ async fn on_publish(
     }
     Ok(())
 }
-async fn on_callback() -> FSMResult {
+async fn on_accept(
+    bot: WBot,
+    dialogue: MyDialogue,
+    (user, callback): (User, CallbackResponse),
+    ad: Ad,
+    conf: Conf,
+) -> FSMResult {
+    match callback {
+        CallbackResponse::Yes => {
+            let text = make_ad_text(user, &ad);
+            let msg = bot.send_message(conf.channel, text).parse_mode(ParseMode::MarkdownV2).await?;
+            bot.forward_message(dialogue.chat_id(), conf.channel, msg.id).await?;
+            dialogue.exit().await?;
+        },
+        CallbackResponse::No => {
+            dialogue.update(State::Filling(ad)).await?;
+            bot.send_message(dialogue.chat_id(), "можешь поправить публикацию").await?;
+        },
+        CallbackResponse::User(_) => todo!(),
+        CallbackResponse::Remove(_) => todo!(),
+    }
     Ok(())
 }

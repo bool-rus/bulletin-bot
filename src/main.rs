@@ -197,8 +197,8 @@ async fn main() {
 
     let conf = Config{
         token: "5278794412:AAFqSFgFvU_oO4maxaHsdv0gQFCPtq-ycuw".to_owned(),
-        admin_ids: Vec::new(),
-        channel: teloxide::types::ChatId(0),
+        admin_ids: vec![teloxide::types::UserId(212858650)],
+        channel: teloxide::types::ChatId(-1001657257723),
     };
     bot::start(conf);
     tokio::signal::ctrl_c().await.expect("Failed to listen for ^C");
