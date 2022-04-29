@@ -1,12 +1,14 @@
 mod fsm;
 mod impls;
+mod res;
+mod bots;
 
 use std::{collections::{HashMap, HashSet}, sync::Arc};
 
 use fsm::*;
 use impls::ContextEx;
 use tbot::{Bot, contexts::fields::Message, prelude::*, state::StatefulEventLoop};
-use tokio::sync::Mutex;
+use tokio::{sync::Mutex, time::sleep};
 
 type UserId = tbot::types::user::Id;
 type ChannelId = tbot::types::chat::Id;
@@ -31,7 +33,7 @@ mod buttons {
 }
 use buttons::*;
 
-use crate::impls::LoggableErrorResult;
+use crate::{impls::LoggableErrorResult, bots::bulletin::bot::{Config, self}};
 
 struct Storage {
     admins: HashSet<UserId>,
@@ -161,21 +163,8 @@ async fn run_bot(bot: Bot, storage: Storage) {
 fn init_help(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
     bot.commands(vec!["help", "start"], |ctx, storage| async move {
         let is_admin = storage.lock().await.is_admin(ctx.as_ref());
-        let text = 
-        "Привет!
-Чтобы начать создание объявления - используй кнопку [Новое объявление] или команду /create
-Я предложу наполнить объявление текстом или фото. При этом новый текст будет заменять предыдущий, а не дополнять.
-Также у Телеграм есть ограничение на 10 фото в одном сообщении, поэтому не получится опубликовать объявление \
-с большим количеством фото.
-Удалять фото нельзя, поэтому, если случайно добавлено не то фото, следует начать создание объявления заново.
-Чтобы опубликовать объявление - используй кнопку [Опубликовать] или команду /publish
-Перед публикацией я создам макет объявления и предложу подтвердить публикацию. Если все ок - жми [Да].
-Тогда я опубликую объявление в канале и перешлю его тебе. Таким образом из этого чата можно провалиться в свою \
-публикацию и почитать комментарии.
-Помимо этого я пришлю сообщение об успешной публикации с кнопкой удаления объявления. \
-К сожалению, Телеграм не позволяет ботам удалять сообщения старше 48 часов.";
         let markup = if is_admin { ADMIN_BUTTONS } else { USER_BUTTONS };
-        ctx.send_message(text).reply_markup(markup).call().await.ok_or_log();
+        ctx.send_message(res::HELP).reply_markup(markup).call().await.ok_or_log();
     });
 }
 
@@ -205,6 +194,16 @@ fn is_private<T: Message>(msg: &T) -> bool {
 #[tokio::main]
 async fn main() {
     init_logger();
+
+    let conf = Config{
+        token: "5278794412:AAFqSFgFvU_oO4maxaHsdv0gQFCPtq-ycuw".to_owned(),
+        admin_ids: Vec::new(),
+        channel: teloxide::types::ChatId(0),
+    };
+    bot::start(conf);
+    tokio::signal::ctrl_c().await.expect("Failed to listen for ^C");
+    sleep(std::time::Duration::from_secs(20)).await;
+    /* 
     use std::env::var;
     let channel = var("CHANNEL_ID").expect("Please, set env variable CHANNEL_ID")
     .parse::<i64>().expect("CHANNEL_ID must be integer");
@@ -218,9 +217,10 @@ async fn main() {
     let conversations = Default::default();
     let storage = Storage {admins, channel, conversations};
     run_bot(bot, storage).await;
+    */
 }
 
 fn init_logger() {
     use simplelog::*;
-    TermLogger::init(LevelFilter::Warn, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).unwrap();
+    TermLogger::init(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).unwrap();
 }

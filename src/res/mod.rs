@@ -1,0 +1,1 @@
+pub static HELP: &str = include_str!("help.txt");
