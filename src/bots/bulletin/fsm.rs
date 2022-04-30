@@ -2,7 +2,7 @@ use std::default;
 
 use teloxide::{dispatching::dialogue, types::{User, ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId}, payloads::SendMessageSetters};
 
-use super::{*, impls::make_ad_text};
+use super::{*, impls::{make_ad_text, send_ad}};
 use teloxide::prelude::*;
 
 type MyDialogue = Dialogue<State, Storage>;
@@ -116,9 +116,11 @@ async fn on_publish(
     user: User,
     dialogue: MyDialogue
 ) -> FSMResult {
+    let chat_id = dialogue.chat_id();
     match dialogue.get().await?.unwrap_or_default() {
         State::Filling(ad) => {
-            bot.send_message(dialogue.chat_id(), make_ad_text(user, &ad)).parse_mode(ParseMode::MarkdownV2)
+            send_ad(bot.clone(), chat_id, &user, &ad).await?;
+            bot.send_message(chat_id, "Все верно?")
             .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
                 InlineKeyboardButton::callback("Да".to_owned(), ron::to_string(&CallbackResponse::Yes)?),
                 InlineKeyboardButton::callback("Нет".to_owned(), ron::to_string(&CallbackResponse::No)?),
@@ -146,9 +148,8 @@ async fn on_accept(
 ) -> FSMResult {
     match callback {
         CallbackResponse::Yes => {
-            let text = make_ad_text(user, &ad);
-            let msg = bot.send_message(conf.channel, text).parse_mode(ParseMode::MarkdownV2).await?;
-            bot.forward_message(dialogue.chat_id(), conf.channel, msg.id).await?;
+            let msgs = send_ad(bot.clone(), conf.channel, &user, &ad).await?;
+            bot.forward_message(dialogue.chat_id(), conf.channel, msgs[0].id).await?;
             dialogue.exit().await?;
         },
         CallbackResponse::No => {
