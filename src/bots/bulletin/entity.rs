@@ -116,6 +116,9 @@ impl Signal {
             _ => None,
         }
     }
+    pub fn user(&self) -> &User {
+        &self.user
+    }
 }
 
 impl GetChatId for Signal {

@@ -1,12 +1,11 @@
 use std::default;
 
-use teloxide::{dispatching::dialogue, types::{User, ParseMode, InlineKeyboardMarkup, InlineKeyboardButton}, payloads::SendMessageSetters};
+use teloxide::{dispatching::dialogue, types::{User, ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId}, payloads::SendMessageSetters};
 
 use super::{*, impls::make_ad_text};
 use teloxide::prelude::*;
 
 type MyDialogue = Dialogue<State, Storage>;
-type UserId = String;
 type Conf = std::sync::Arc<super::bot::Config>;
 
 pub type FSMResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
