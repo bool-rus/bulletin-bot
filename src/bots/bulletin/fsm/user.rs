@@ -1,55 +1,16 @@
-
-use teloxide::payloads::SendMessageSetters;
-use teloxide::types::{User, ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId};
-
-use super::impls::send_ad;
 use super::*;
 
-
-type MyDialogue = Dialogue<State, Storage>;
-type Conf = std::sync::Arc<super::bot::Config>;
-
-pub type FSMResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
-
-#[derive(Clone)]
-pub enum State {
-    Ready,
-    PriceWaitng,
-    Filling(Ad),
-    Preview(Ad),
-    Banned(String),
-    WaitForward,
-    WaitCause(UserId),
-    WaitSelectBanned,
-}
-
-impl Default for State {
-    fn default() -> Self {
-        State::Ready
-    }
-}
-
-pub fn make_dialogue_handler() -> Handler<'static, DependencyMap, FSMResult, teloxide::dispatching::DpHandlerDescription> {
-    dptree::filter_map(Signal::from_update)
-    .enter_dialogue::<Signal, Storage, State>()
-    .branch(
+pub fn process_user(handler: FSMHandler) -> FSMHandler {
+    handler.branch(
         dptree::filter_map(Signal::filter_content)
         .branch(teloxide::handler![State::PriceWaitng].endpoint(on_price_waiting))
         .branch(teloxide::handler![State::Filling(ad)].endpoint(on_filling))
-        .endpoint(send_need_command)
     ).branch(
         dptree::filter_map(Signal::filter_user_action)
         .endpoint(on_user_action)
     )
 }
 
-async fn send_need_command(
-    bot: WBot,
-    dialogue: MyDialogue,
-) -> FSMResult {
-    bot.send_message(dialogue.chat_id(), "Введи какую-нибудь команду (или нажми кнопку)").await?;
-    Ok(())
-}
 
 async fn on_price_waiting(
     bot: WBot,
