@@ -39,12 +39,8 @@ pub fn make_dialogue_handler() -> Handler<'static, DependencyMap, FSMResult, tel
         .branch(teloxide::handler![State::WaitCause(user_id)].endpoint(on_wait_cause))
         .endpoint(send_need_command)
     ).branch(
-        dptree::filter_map(Signal::filter_command)
-        .endpoint(on_command)
-    ).branch(
-        dptree::filter_map(Signal::filter_callback)
-        .branch(teloxide::handler![State::Preview(ad)].endpoint(on_accept))
-        .endpoint(on_callback)
+        dptree::filter_map(Signal::filter_user_action)
+        .endpoint(on_user_action)
     )
 }
 
@@ -91,23 +87,39 @@ async fn on_wait_cause() -> FSMResult {
     Ok(())
 }
 
-async fn on_command(
+async fn on_user_action(
     bot: WBot,
     dialogue: MyDialogue,
-    (user, cmd): (User, Command),
+    (user, action): (User, UserAction),
     conf: Conf,
 ) -> FSMResult {
-    match cmd {
-        Command::Help => {
-            bot.send_message(dialogue.chat_id(), "здесь должен быть хэлп").await?;
+    let chat_id = dialogue.chat_id();
+    match action {
+        UserAction::Help => {
+            bot.send_message(chat_id, "здесь должен быть хэлп").await?;
         },
-        Command::Create => {
+        UserAction::Create => {
             dialogue.update(State::PriceWaitng).await?;
-            bot.send_message(dialogue.chat_id(), "засылай цену в рублях одним целым числом").await?;
+            bot.send_message(chat_id, "засылай цену в рублях одним целым числом").await?;
         },
-        Command::Publish => on_publish(bot, user, dialogue).await?,
-        Command::Ban => todo!(),
-        Command::Unban => todo!(),
+        UserAction::Publish => on_publish(bot, user, dialogue).await?,
+        UserAction::Yes => if let State::Preview(ad) = dialogue.get_or_default().await? {
+            let msgs: Vec<_> = send_ad(bot.clone(), conf.channel, &user, &ad).await?.into_iter().map(|m|m.id).collect();
+            bot.forward_message(chat_id, conf.channel, msgs[0]).await?;
+            let data = ron::to_string(&CallbackResponse::Remove(msgs))?;
+            dialogue.exit().await?;
+            bot.send_message(chat_id, "Объявление опубликовано").parse_mode(ParseMode::MarkdownV2)
+            .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
+                InlineKeyboardButton::callback("Снять с публикации".to_owned(), data),
+            ])).await?;
+        },
+        UserAction::No => if let State::Preview(ad) = dialogue.get_or_default().await? {
+            dialogue.update(State::Filling(ad)).await?;
+            bot.send_message(chat_id, "можешь поправить публикацию").await?;
+        },
+        UserAction::Remove(msgs) => for msg in msgs {
+            bot.delete_message(conf.channel, msg).await?;
+        },
     }
     Ok(())
 }
@@ -137,49 +149,6 @@ async fn on_publish(
         _ => {
             bot.send_message(dialogue.chat_id(), "Сначала надо создать публикацию").await?;
         }
-    }
-    Ok(())
-}
-async fn on_accept(
-    bot: WBot,
-    dialogue: MyDialogue,
-    (user, callback): (User, CallbackResponse),
-    ad: Ad,
-    conf: Conf,
-) -> FSMResult {
-    let chat_id = dialogue.chat_id();
-    match callback {
-        CallbackResponse::Yes => {
-            let msgs: Vec<_> = send_ad(bot.clone(), conf.channel, &user, &ad).await?.into_iter().map(|m|m.id).collect();
-            bot.forward_message(chat_id, conf.channel, msgs[0]).await?;
-            let data = ron::to_string(&CallbackResponse::Remove(msgs))?;
-            dialogue.exit().await?;
-            bot.send_message(chat_id, "Объявление опубликовано").parse_mode(ParseMode::MarkdownV2)
-            .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
-                InlineKeyboardButton::callback("Снять с публикации".to_owned(), data),
-            ])).await?;
-        },
-        CallbackResponse::No => {
-            dialogue.update(State::Filling(ad)).await?;
-            bot.send_message(dialogue.chat_id(), "можешь поправить публикацию").await?;
-        },
-        CallbackResponse::User(_) => todo!(),
-        CallbackResponse::Remove(_) => todo!(),
-    }
-    Ok(())
-}
-
-async fn on_callback(
-    bot: WBot,
-    (user, callback): (User, CallbackResponse),
-    dialogue: MyDialogue,
-    conf: Conf,
-) -> FSMResult {
-    match callback {
-        CallbackResponse::Remove(msgs) => for msg in msgs {
-            bot.delete_message(conf.channel, msg).await?;
-        }
-        _ => unimplemented!()
     }
     Ok(())
 }

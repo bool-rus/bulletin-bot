@@ -23,9 +23,7 @@ pub enum Content {
     Photo(String),
     TextAndPhoto(String, String),
 }
-
-#[derive(Clone)]
-pub enum Command {
+enum Command {
     Help,
     Create,
     Publish,
@@ -34,10 +32,27 @@ pub enum Command {
 }
 
 #[derive(Clone)]
+pub enum UserAction {
+    Help,
+    Create,
+    Publish,
+    Yes,
+    No,
+    Remove(Vec<MessageId>)
+}
+
+#[derive(Clone)]
+pub enum AdminAction {
+    Ban,
+    Unban,
+    UserToUnban(UserId),
+}
+
+#[derive(Clone)]
 pub enum SignalKind {
-    Command(Command),
+    UserAction(UserAction),
+    AdminAction(AdminAction),
     Content(Content),
-    Select(CallbackResponse),
 }
 
 #[derive(Clone)]
@@ -67,7 +82,7 @@ impl Signal {
                         MediaKind::Text(m) => {
                             let text = m.text.as_str();
                             match Command::from_str(text) {
-                                Ok(cmd) => SignalKind::Command(cmd),
+                                Ok(cmd) => cmd.into(),
                                 Err(_) => SignalKind::Content(Content::Text(m.text)),
                             }
                         },
@@ -83,7 +98,7 @@ impl Signal {
                 let user = q.from;
                 let data = q.data?;
                 match ron::from_str::<CallbackResponse>(data.as_str()) {
-                    Ok(response) => Some(Signal{chat_id, user, kind: SignalKind::Select(response)}),
+                    Ok(response) => Some(Signal{chat_id, user, kind: response.into()}),
                     Err(e) => {
                         log::error!("cannot parse callback data: {:?}", e);
                         None
@@ -98,21 +113,15 @@ impl Signal {
         }
     }
     //тут кортеж (User,Command) - это что-то уродливое. Тут либо делать типы-обертки, а-ля CommandSignal{user,command}, либо еще подумать
-    pub fn filter_command(self) -> Option<(User, Command)> {
+    pub fn filter_user_action(self) -> Option<(User, UserAction)> {
         match self.kind {
-            SignalKind::Command(cmd) => Some((self.user, cmd)),
+            SignalKind::UserAction(action) => Some((self.user, action)),
             _ => None,
         }
     }
     pub fn filter_content(self) -> Option<(User, Content)> {
         match self.kind {
             SignalKind::Content(c) => Some((self.user,c)),
-            _ => None,
-        }
-    }
-    pub fn filter_callback(self) -> Option<(User, CallbackResponse)> {
-        match self.kind {
-            SignalKind::Select(c) => Some((self.user,c)),
             _ => None,
         }
     }
@@ -138,6 +147,31 @@ impl FromStr for Command {
             "/ban" => Ok(Self::Ban),
             "/unban" => Ok(Self::Unban),
             _ => Err(())
+        }
+    }
+}
+
+impl Into<SignalKind> for Command {
+    fn into(self) -> SignalKind {
+        use SignalKind as SK;
+        match self {
+            Command::Ban => SK::AdminAction(AdminAction::Ban),
+            Command::Unban => SK::AdminAction(AdminAction::Unban),
+            Command::Help => SK::UserAction(UserAction::Help),
+            Command::Create => SK::UserAction(UserAction::Create),
+            Command::Publish => SK::UserAction(UserAction::Publish),
+        }
+    }
+}
+
+impl Into<SignalKind> for CallbackResponse {
+    fn into(self) -> SignalKind {
+        use SignalKind as SK;
+        match self {
+            CallbackResponse::Yes => SK::UserAction(UserAction::Yes),
+            CallbackResponse::No => SK::UserAction(UserAction::No),
+            CallbackResponse::User(u) => SK::AdminAction(AdminAction::UserToUnban(u)),
+            CallbackResponse::Remove(msgs) => SK::UserAction(UserAction::Remove(msgs)),
         }
     }
 }
