@@ -1,9 +1,10 @@
-use std::default;
 
-use teloxide::{dispatching::dialogue, types::{User, ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId}, payloads::SendMessageSetters};
+use teloxide::payloads::SendMessageSetters;
+use teloxide::types::{User, ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId};
 
-use super::{*, impls::{make_ad_text, send_ad}};
-use teloxide::prelude::*;
+use super::impls::send_ad;
+use super::*;
+
 
 type MyDialogue = Dialogue<State, Storage>;
 type Conf = std::sync::Arc<super::bot::Config>;
@@ -35,8 +36,6 @@ pub fn make_dialogue_handler() -> Handler<'static, DependencyMap, FSMResult, tel
         dptree::filter_map(Signal::filter_content)
         .branch(teloxide::handler![State::PriceWaitng].endpoint(on_price_waiting))
         .branch(teloxide::handler![State::Filling(ad)].endpoint(on_filling))
-        .branch(teloxide::handler![State::WaitForward].endpoint(on_wait_forward))
-        .branch(teloxide::handler![State::WaitCause(user_id)].endpoint(on_wait_cause))
         .endpoint(send_need_command)
     ).branch(
         dptree::filter_map(Signal::filter_user_action)
@@ -76,14 +75,6 @@ async fn on_filling(
     ad.fill(content);
     dialogue.update(State::Filling(ad)).await?;
     bot.send_message(dialogue.chat_id(), "Присылай описание или фотки").await?;
-    Ok(())
-}
-
-async fn on_wait_forward() -> FSMResult {
-    Ok(())
-}
-
-async fn on_wait_cause() -> FSMResult {
     Ok(())
 }
 
@@ -141,13 +132,13 @@ async fn on_publish(
             dialogue.update(State::Preview(ad)).await?;
         },
         State::Preview(_) => {
-            bot.send_message(dialogue.chat_id(), "Посмотри публикацию, если все ок - жми Да").await?;
+            bot.send_message(chat_id, "Посмотри публикацию, если все ок - жми Да").await?;
         },
         State::PriceWaitng => {
-            bot.send_message(dialogue.chat_id(), "Сначала давай цену").await?;
+            bot.send_message(chat_id, "Сначала давай цену").await?;
         },
         _ => {
-            bot.send_message(dialogue.chat_id(), "Сначала надо создать публикацию").await?;
+            bot.send_message(chat_id, "Сначала надо создать публикацию").await?;
         }
     }
     Ok(())
