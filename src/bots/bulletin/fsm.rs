@@ -44,6 +44,7 @@ pub fn make_dialogue_handler() -> Handler<'static, DependencyMap, FSMResult, tel
     ).branch(
         dptree::filter_map(Signal::filter_callback)
         .branch(teloxide::handler![State::Preview(ad)].endpoint(on_accept))
+        .endpoint(on_callback)
     )
 }
 
@@ -146,11 +147,17 @@ async fn on_accept(
     ad: Ad,
     conf: Conf,
 ) -> FSMResult {
+    let chat_id = dialogue.chat_id();
     match callback {
         CallbackResponse::Yes => {
-            let msgs = send_ad(bot.clone(), conf.channel, &user, &ad).await?;
-            bot.forward_message(dialogue.chat_id(), conf.channel, msgs[0].id).await?;
+            let msgs: Vec<_> = send_ad(bot.clone(), conf.channel, &user, &ad).await?.into_iter().map(|m|m.id).collect();
+            bot.forward_message(chat_id, conf.channel, msgs[0]).await?;
+            let data = ron::to_string(&CallbackResponse::Remove(msgs))?;
             dialogue.exit().await?;
+            bot.send_message(chat_id, "Объявление опубликовано").parse_mode(ParseMode::MarkdownV2)
+            .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
+                InlineKeyboardButton::callback("Снять с публикации".to_owned(), data),
+            ])).await?;
         },
         CallbackResponse::No => {
             dialogue.update(State::Filling(ad)).await?;
@@ -158,6 +165,21 @@ async fn on_accept(
         },
         CallbackResponse::User(_) => todo!(),
         CallbackResponse::Remove(_) => todo!(),
+    }
+    Ok(())
+}
+
+async fn on_callback(
+    bot: WBot,
+    (user, callback): (User, CallbackResponse),
+    dialogue: MyDialogue,
+    conf: Conf,
+) -> FSMResult {
+    match callback {
+        CallbackResponse::Remove(msgs) => for msg in msgs {
+            bot.delete_message(conf.channel, msg).await?;
+        }
+        _ => unimplemented!()
     }
     Ok(())
 }
