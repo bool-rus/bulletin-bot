@@ -3,6 +3,7 @@ use teloxide::payloads::SendMessageSetters;
 use teloxide::types::{User, ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId};
 
 
+use self::admin::process_admin;
 use self::user::process_user;
 
 use super::impls::send_ad;
@@ -13,6 +14,7 @@ type MyDialogue = Dialogue<State, Storage>;
 type Conf = std::sync::Arc<super::bot::Config>;
 
 mod user;
+mod admin;
 
 pub type FSMResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 pub type FSMHandler = Handler<'static, DependencyMap, FSMResult, teloxide::dispatching::DpHandlerDescription>;
@@ -39,8 +41,10 @@ pub fn make_dialogue_handler() -> FSMHandler {
     dptree::filter_map(Signal::from_update)
     .enter_dialogue::<Signal, Storage, State>()
     .branch(process_user(dptree::entry()))
+    .branch(process_admin(dptree::entry()))
     .endpoint(send_need_command)
 }
+
 
 async fn send_need_command(
     bot: WBot,

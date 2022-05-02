@@ -7,7 +7,7 @@ use teloxide::{types::{UserId, Update, ChatId, UpdateKind, MessageKind, MessageC
 
 type MessageId = i32;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum CallbackResponse {
     #[serde(rename="y")]
     Yes,
@@ -17,7 +17,7 @@ pub enum CallbackResponse {
     Remove(Vec<MessageId>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Content {
     Text(String),
     Photo(String),
@@ -31,7 +31,7 @@ enum Command {
     Unban,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum UserAction {
     Help,
     Create,
@@ -41,14 +41,14 @@ pub enum UserAction {
     Remove(Vec<MessageId>)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum AdminAction {
     Ban,
     Unban,
     UserToUnban(UserId),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum SignalKind {
     UserAction(UserAction),
     AdminAction(AdminAction),
@@ -117,6 +117,12 @@ impl Signal {
         match self.kind {
             SignalKind::UserAction(action) => Some((self.user, action)),
             _ => None,
+        }
+    }
+    pub fn filter_admin_action(self) -> Option<AdminAction> {
+        match self.kind {
+            SignalKind::AdminAction(action) => Some(action),
+            _ => None
         }
     }
     pub fn filter_content(self) -> Option<(User, Content)> {
