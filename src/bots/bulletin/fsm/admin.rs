@@ -1,7 +1,4 @@
-
-use std::{sync::{Arc, Mutex}, collections::HashMap};
-
-use teloxide::{handler, dispatching::dialogue::Storage};
+use teloxide::handler;
 
 use super::*;
 
@@ -19,7 +16,7 @@ pub fn process_admin(handler: FSMHandler) -> FSMHandler {
 }
 
 fn filter_admin(signal: Signal, conf: Conf) -> bool {
-    conf.admin_ids.contains(&signal.user().id)
+    conf.is_admin(&signal.user().id)
 }
 
 async fn on_action(
@@ -54,7 +51,6 @@ async fn on_action(
             dialogue.exit().await?;
         },
     }
-    bot.send_message(dialogue.chat_id(), format!("action: {:?}", action)).await?;
     Ok(())
 }
 

@@ -1,7 +1,3 @@
-use std::{sync::{Arc, Mutex}, collections::HashMap};
-
-use teloxide::dispatching::dialogue;
-
 use super::*;
 
 pub fn process_user(handler: FSMHandler) -> FSMHandler {

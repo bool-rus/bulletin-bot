@@ -1,5 +1,5 @@
 use super::*;
-use teloxide::types::{ChatId, User, InputFile, ParseMode, InputMedia, InputMediaPhoto, MessageEntity};
+use teloxide::types::{ChatId, User, InputFile, ParseMode, InputMedia, InputMediaPhoto};
 use teloxide::utils::markdown::*;
 
 

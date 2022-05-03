@@ -1,9 +1,9 @@
-use std::{sync::{Arc, Mutex}, collections::HashMap};
+use std::sync::Arc;
 
 use crate::impls::LoggableErrorResult;
 
 use super::*;
-use teloxide::types::{UserId, ChatId, BotCommand, ParseMode};
+use teloxide::types::BotCommand;
 
 pub fn start(config: Config) {
     let config = Arc::new(config);

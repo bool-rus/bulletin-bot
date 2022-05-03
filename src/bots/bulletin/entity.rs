@@ -3,11 +3,10 @@ use super::*;
 
 use serde::{Serialize, Deserialize};
 
-use teloxide::{types::{UserId, Update, ChatId, UpdateKind, MessageKind, MessageCommon, MediaKind, PhotoSize, User, MediaText}, dispatching::dialogue::GetChatId};
+use teloxide::dispatching::dialogue::GetChatId;
+use teloxide::types::{UserId, Update, ChatId, UpdateKind, MessageKind, MediaKind, User, MediaText};
 
 type MessageId = i32;
-
-pub type Text = MediaText;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum CallbackResponse {
