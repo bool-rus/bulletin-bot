@@ -39,7 +39,6 @@ async fn on_action(
                 .unwrap_or(format!("[{}]", user_id));
                 let text = format!("{} ({})", name, cause);
                 let data = ron::to_string(&CallbackResponse::User(user_id))?;
-                log::info!("data: {}", data);
                 markup = markup.append_row(vec![InlineKeyboardButton::callback(text, data)]);
             }
             bot.send_message(dialogue.chat_id(), "Выбери, кого амнистировать").reply_markup(markup).await?;
