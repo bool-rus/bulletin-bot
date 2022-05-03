@@ -1,3 +1,7 @@
+use std::{sync::{Arc, Mutex}, collections::HashMap};
+
+use teloxide::dispatching::dialogue;
+
 use super::*;
 
 pub fn process_user(handler: FSMHandler) -> FSMHandler {
@@ -11,11 +15,10 @@ pub fn process_user(handler: FSMHandler) -> FSMHandler {
     )
 }
 
-
 async fn on_price_waiting(
     bot: WBot,
     dialogue: MyDialogue,
-    (_, content): (User, Content),
+    content: Content,
 ) -> FSMResult {
     let msg = if let Some(price) = content.price() {
         dialogue.update(State::Filling(Ad::new(price))).await?;
@@ -31,7 +34,7 @@ async fn on_filling(
     bot: WBot,
     dialogue: MyDialogue,
     mut ad: Ad,
-    (_, content): (User, Content),
+    content: Content,
 ) -> FSMResult {
     ad.fill(content);
     dialogue.update(State::Filling(ad)).await?;
@@ -46,6 +49,12 @@ async fn on_user_action(
     conf: Conf,
 ) -> FSMResult {
     let chat_id = dialogue.chat_id();
+    let user_id = u64::try_from(chat_id.0)?;
+    if let Some(cause) = conf.is_banned(&UserId(user_id)) {
+        bot.send_message(chat_id, format!("Ты в бане. Причина: {}", cause)).await?;
+        dialogue.exit().await?;
+        return Ok(())
+    }
     match action {
         UserAction::Help => {
             bot.send_message(chat_id, "здесь должен быть хэлп").await?;
@@ -59,11 +68,11 @@ async fn on_user_action(
             let msgs: Vec<_> = send_ad(bot.clone(), conf.channel, &user, &ad).await?.into_iter().map(|m|m.id).collect();
             bot.forward_message(chat_id, conf.channel, msgs[0]).await?;
             let data = ron::to_string(&CallbackResponse::Remove(msgs))?;
-            dialogue.exit().await?;
             bot.send_message(chat_id, "Объявление опубликовано").parse_mode(ParseMode::MarkdownV2)
             .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
                 InlineKeyboardButton::callback("Снять с публикации".to_owned(), data),
             ])).await?;
+            dialogue.exit().await?;
         },
         UserAction::No => if let State::Preview(ad) = dialogue.get_or_default().await? {
             dialogue.update(State::Filling(ad)).await?;

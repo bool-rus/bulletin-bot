@@ -5,6 +5,7 @@ mod bots;
 
 use std::{collections::{HashMap, HashSet}, sync::Arc};
 
+use bots::bulletin;
 use fsm::*;
 use impls::ContextEx;
 use tbot::{Bot, contexts::fields::Message, prelude::*, state::StatefulEventLoop};
@@ -33,7 +34,7 @@ mod buttons {
 }
 use buttons::*;
 
-use crate::{impls::LoggableErrorResult, bots::bulletin::bot::{Config, self}};
+use crate::impls::LoggableErrorResult;
 
 struct Storage {
     admins: HashSet<UserId>,
@@ -195,12 +196,12 @@ fn is_private<T: Message>(msg: &T) -> bool {
 async fn main() {
     init_logger();
 
-    let conf = Config{
-        token: "5278794412:AAFqSFgFvU_oO4maxaHsdv0gQFCPtq-ycuw".to_owned(),
-        admin_ids: vec![teloxide::types::UserId(212858650)],
-        channel: teloxide::types::ChatId(-1001657257723),
-    };
-    bot::start(conf);
+    let mut conf = bulletin::Config::new(
+         "5278794412:AAFqSFgFvU_oO4maxaHsdv0gQFCPtq-ycuw".to_owned(),
+        teloxide::types::ChatId(-1001657257723),
+    );
+    conf.add_admin(teloxide::types::UserId(212858650));
+    bulletin::start(conf);
     tokio::signal::ctrl_c().await.expect("Failed to listen for ^C");
     sleep(std::time::Duration::from_secs(20)).await;
     /* 

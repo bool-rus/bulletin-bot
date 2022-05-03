@@ -17,10 +17,10 @@ impl Ad {
     }
     pub fn fill(&mut self, content: Content) {
         match content {
-            Content::Text(text) => self.text = text,
+            Content::Text(text) => self.text = text.text,
             Content::Photo(id) => self.photos.push(id),
             Content::TextAndPhoto(text, id) => {
-                self.text = text;
+                self.text = text.text;
                 self.photos.push(id);
             },
         }

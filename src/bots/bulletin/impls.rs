@@ -1,5 +1,5 @@
 use super::*;
-use teloxide::types::{ChatId, User, InputFile, ParseMode, InputMedia, InputMediaPhoto};
+use teloxide::types::{ChatId, User, InputFile, ParseMode, InputMedia, InputMediaPhoto, MessageEntity};
 use teloxide::utils::markdown::*;
 
 
@@ -30,3 +30,4 @@ pub async fn send_ad(bot: WBot, chat_id: ChatId, user: &User, ad: &Ad) -> Result
 fn make_photo<T: Into<String>>(file_id: T) -> InputMediaPhoto {
    InputMediaPhoto::new(InputFile::file_id(file_id.into()))
 }
+

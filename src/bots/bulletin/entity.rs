@@ -3,9 +3,11 @@ use super::*;
 
 use serde::{Serialize, Deserialize};
 
-use teloxide::{types::{UserId, Update, ChatId, UpdateKind, MessageKind, MessageCommon, MediaKind, PhotoSize, User}, dispatching::dialogue::GetChatId};
+use teloxide::{types::{UserId, Update, ChatId, UpdateKind, MessageKind, MessageCommon, MediaKind, PhotoSize, User, MediaText}, dispatching::dialogue::GetChatId};
 
 type MessageId = i32;
+
+pub type Text = MediaText;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum CallbackResponse {
@@ -19,9 +21,9 @@ pub enum CallbackResponse {
 
 #[derive(Clone, Debug)]
 pub enum Content {
-    Text(String),
+    Text(MediaText),
     Photo(String),
-    TextAndPhoto(String, String),
+    TextAndPhoto(MediaText, String),
 }
 enum Command {
     Help,
@@ -74,8 +76,9 @@ impl Signal {
                         MediaKind::Photo(mut photo) => {
                             photo.photo.sort_unstable_by_key(|size|size.height);
                             let best_size = photo.photo.last()?.file_id.clone();
+                            let entities = photo.caption_entities;
                             match photo.caption {
-                                Some(text) => SignalKind::Content(Content::TextAndPhoto(text, best_size)),
+                                Some(text) => SignalKind::Content(Content::TextAndPhoto(MediaText { text, entities }, best_size)),
                                 None => SignalKind::Content(Content::Photo(best_size)),
                             }
                         },
@@ -83,7 +86,7 @@ impl Signal {
                             let text = m.text.as_str();
                             match Command::from_str(text) {
                                 Ok(cmd) => cmd.into(),
-                                Err(_) => SignalKind::Content(Content::Text(m.text)),
+                                Err(_) => SignalKind::Content(Content::Text(m)),
                             }
                         },
                         _ => return None
@@ -125,9 +128,9 @@ impl Signal {
             _ => None
         }
     }
-    pub fn filter_content(self) -> Option<(User, Content)> {
+    pub fn filter_content(self) -> Option<Content> {
         match self.kind {
-            SignalKind::Content(c) => Some((self.user,c)),
+            SignalKind::Content(c) => Some(c),
             _ => None,
         }
     }
@@ -186,11 +189,9 @@ impl Content {
     pub fn price(&self) -> Option<Price> {
         match self {
             Self::Text(txt) => {
-                txt.parse().ok()
+                txt.text.parse().ok()
             },
             _ => None
         }
     }
 }
-
-

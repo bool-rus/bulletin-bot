@@ -10,8 +10,8 @@ use super::impls::send_ad;
 use super::*;
 
 
-type MyDialogue = Dialogue<State, Storage>;
-type Conf = std::sync::Arc<super::bot::Config>;
+type MyDialogue = Dialogue<State, MyStorage>;
+type Conf = std::sync::Arc<Config>;
 
 mod user;
 mod admin;
@@ -25,7 +25,6 @@ pub enum State {
     PriceWaitng,
     Filling(Ad),
     Preview(Ad),
-    Banned(String),
     WaitForward,
     WaitCause(UserId),
     WaitSelectBanned,
@@ -39,7 +38,7 @@ impl Default for State {
 
 pub fn make_dialogue_handler() -> FSMHandler {
     dptree::filter_map(Signal::from_update)
-    .enter_dialogue::<Signal, Storage, State>()
+    .enter_dialogue::<Signal, MyStorage, State>()
     .branch(process_user(dptree::entry()))
     .branch(process_admin(dptree::entry()))
     .endpoint(send_need_command)
