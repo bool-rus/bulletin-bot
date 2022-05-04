@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use teloxide::types::{UserId, ChatId};
+use teloxide::types::{UserId, ChatId, KeyboardButton, ReplyMarkup};
+use super::res::*;
 
 pub struct Config {
     pub token: String, 
@@ -18,6 +19,18 @@ impl Config {
             admin_ids: Vec::new(),
             banned: Mutex::new(HashMap::new()),
         }
+    }
+    pub fn keyboard(&self, user_id: UserId) -> ReplyMarkup {
+        use KeyboardButton as KB;
+        let mut keyboard = vec![
+            vec![KB::new(CREATE), KB::new(PUBLISH)]
+        ];
+        if self.is_admin(&user_id) {
+            keyboard.push(
+                vec![KB::new(BAN), KB::new(UNBAN)]
+            )
+        }
+        ReplyMarkup::keyboard(keyboard)
     }
     pub fn add_admin(&mut self, user_id: UserId) {
         self.admin_ids.push(user_id);

@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use super::*;
+use super::res::*;
 
 use serde::{Serialize, Deserialize};
 
@@ -148,11 +149,11 @@ impl FromStr for Command {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "/help" => Ok(Self::Help),
-            "/create" => Ok(Self::Create),
-            "/publish" => Ok(Self::Publish),
-            "/ban" => Ok(Self::Ban),
-            "/unban" => Ok(Self::Unban),
+            "/help" | "/start" => Ok(Self::Help),
+            "/create" | CREATE => Ok(Self::Create),
+            "/publish" | PUBLISH => Ok(Self::Publish),
+            "/ban" | BAN => Ok(Self::Ban),
+            "/unban" | UNBAN => Ok(Self::Unban),
             _ => Err(())
         }
     }

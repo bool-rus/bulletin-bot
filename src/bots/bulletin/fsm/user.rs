@@ -53,7 +53,9 @@ async fn on_user_action(
     }
     match action {
         UserAction::Help => {
-            bot.send_message(chat_id, "здесь должен быть хэлп").await?;
+            bot.send_message(chat_id, "здесь должен быть хэлп").reply_markup(
+                conf.keyboard(user_id)
+            ).await?;
         },
         UserAction::Create => {
             dialogue.update(State::PriceWaitng).await?;
