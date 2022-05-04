@@ -1,3 +1,5 @@
+use teloxide::types::ChatId;
+
 use super::*;
 
 pub fn process_user(handler: FSMHandler) -> FSMHandler {
@@ -41,12 +43,12 @@ async fn on_filling(
 async fn on_user_action(
     bot: WBot,
     dialogue: MyDialogue,
-    (user, action): (User, UserAction),
+    action: UserAction,
     conf: Conf,
 ) -> FSMResult {
     let chat_id = dialogue.chat_id();
-    let user_id = u64::try_from(chat_id.0)?;
-    if let Some(cause) = conf.is_banned(&UserId(user_id)) {
+    let user_id = UserId(u64::try_from(chat_id.0)?);
+    if let Some(cause) = conf.is_banned(&user_id) {
         bot.send_message(chat_id, format!("Ты в бане. Причина: {}", cause)).await?;
         dialogue.exit().await?;
         return Ok(())
@@ -59,9 +61,9 @@ async fn on_user_action(
             dialogue.update(State::PriceWaitng).await?;
             bot.send_message(chat_id, "засылай цену в рублях одним целым числом").await?;
         },
-        UserAction::Publish => on_publish(bot, user, dialogue).await?,
+        UserAction::Publish => on_publish(bot, conf, dialogue).await?,
         UserAction::Yes => if let State::Preview(ad) = dialogue.get_or_default().await? {
-            let msgs: Vec<_> = send_ad(bot.clone(), conf.channel, &user, &ad).await?.into_iter().map(|m|m.id).collect();
+            let msgs: Vec<_> = send_ad(bot.clone(), conf.clone(), conf.channel, user_id, &ad).await?.into_iter().map(|m|m.id).collect();
             bot.forward_message(chat_id, conf.channel, msgs[0]).await?;
             let data = ron::to_string(&CallbackResponse::Remove(msgs))?;
             bot.send_message(chat_id, "Объявление опубликовано").parse_mode(ParseMode::MarkdownV2)
@@ -83,13 +85,14 @@ async fn on_user_action(
 
 async fn on_publish(
     bot: WBot,
-    user: User,
-    dialogue: MyDialogue
+    conf: Conf,
+    dialogue: MyDialogue, 
 ) -> FSMResult {
     let chat_id = dialogue.chat_id();
+    let user_id = UserId(u64::try_from(chat_id.0)?);
     match dialogue.get().await?.unwrap_or_default() {
         State::Filling(ad) => {
-            send_ad(bot.clone(), chat_id, &user, &ad).await?;
+            send_ad(bot.clone(), conf, chat_id, user_id, &ad).await?;
             bot.send_message(chat_id, "Все верно?")
             .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
                 InlineKeyboardButton::callback("Да".to_owned(), ron::to_string(&CallbackResponse::Yes)?),

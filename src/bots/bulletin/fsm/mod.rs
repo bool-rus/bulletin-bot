@@ -11,7 +11,7 @@ use super::*;
 
 
 type MyDialogue = Dialogue<State, MyStorage>;
-type Conf = std::sync::Arc<Config>;
+pub type Conf = std::sync::Arc<Config>;
 
 mod user;
 mod admin;
