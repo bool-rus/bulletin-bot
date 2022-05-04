@@ -114,7 +114,6 @@ impl Signal {
             _ => None,
         }
     }
-    //тут кортеж (User,Command) - это что-то уродливое. Тут либо делать типы-обертки, а-ля CommandSignal{user,command}, либо еще подумать
     pub fn filter_user_action(self) -> Option<UserAction> {
         match self.kind {
             SignalKind::UserAction(action) => Some(action),

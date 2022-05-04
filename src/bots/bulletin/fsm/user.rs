@@ -1,5 +1,3 @@
-use teloxide::types::ChatId;
-
 use super::*;
 
 pub fn process_user(handler: FSMHandler) -> FSMHandler {
