@@ -1,6 +1,5 @@
 mod fsm;
 mod impls;
-mod res;
 mod bots;
 
 use std::{collections::{HashMap, HashSet}, sync::Arc};
@@ -165,7 +164,7 @@ fn init_help(bot: &mut StatefulEventLoop<Mutex<Storage>>) {
     bot.commands(vec!["help", "start"], |ctx, storage| async move {
         let is_admin = storage.lock().await.is_admin(ctx.as_ref());
         let markup = if is_admin { ADMIN_BUTTONS } else { USER_BUTTONS };
-        ctx.send_message(res::HELP).reply_markup(markup).call().await.ok_or_log();
+        ctx.send_message("").reply_markup(markup).call().await.ok_or_log();
     });
 }
 
@@ -203,7 +202,7 @@ async fn main() {
     conf.add_admin(teloxide::types::UserId(212858650));
     bulletin::start(conf);
     tokio::signal::ctrl_c().await.expect("Failed to listen for ^C");
-    sleep(std::time::Duration::from_secs(20)).await;
+    sleep(std::time::Duration::from_secs(5)).await;
     /* 
     use std::env::var;
     let channel = var("CHANNEL_ID").expect("Please, set env variable CHANNEL_ID")

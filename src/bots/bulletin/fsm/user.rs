@@ -1,5 +1,5 @@
 use super::*;
-
+use config::Template as Tpl;
 pub fn process_user(handler: FSMHandler) -> FSMHandler {
     handler.branch(
         dptree::filter_map(Signal::filter_content)
@@ -15,12 +15,13 @@ async fn on_price_waiting(
     bot: WBot,
     dialogue: MyDialogue,
     content: Content,
+    conf: Conf,
 ) -> FSMResult {
     let msg = if let Some(price) = content.price() {
         dialogue.update(State::Filling(Ad::new(price))).await?;
-        "Присылай описание или фотки"
+        conf.template(Tpl::RequestDescription)
     } else {
-        "Это не цена, нужно прислать число"
+        conf.template(Tpl::NotAPrice)
     };
     bot.send_message(dialogue.chat_id(), msg).await?;
     Ok(())
@@ -53,13 +54,13 @@ async fn on_user_action(
     }
     match action {
         UserAction::Help => {
-            bot.send_message(chat_id, "здесь должен быть хэлп").reply_markup(
+            bot.send_message(chat_id, conf.template(Tpl::Help)).reply_markup(
                 conf.keyboard(user_id)
             ).await?;
         },
         UserAction::Create => {
             dialogue.update(State::PriceWaitng).await?;
-            bot.send_message(chat_id, "засылай цену в рублях одним целым числом").await?;
+            bot.send_message(chat_id, conf.template(Tpl::RequestPrice)).await?;
         },
         UserAction::Publish => on_publish(bot, conf, dialogue).await?,
         UserAction::Yes => if let State::Preview(ad) = dialogue.get_or_default().await? {

@@ -18,9 +18,4 @@ mod impls;
 mod ad;
 mod config;
 
-mod res {
-    pub const CREATE: &'static str = "Новое объявление";
-    pub const PUBLISH: &'static str = "Опубликовать";
-    pub const BAN: &'static str = "Забанить";
-    pub const UNBAN: &'static str = "Амнистировать";
-}
+mod res;

@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+use strum::EnumCount;
 use teloxide::types::{UserId, ChatId, KeyboardButton, ReplyMarkup};
-use super::res::*;
 
 pub struct Config {
     pub token: String, 
     pub admin_ids: Vec<UserId>,
     pub channel: ChatId,
+    templates: [String; Template::COUNT],
     banned: Mutex<HashMap<UserId, String>>,
 }
 
@@ -18,9 +19,11 @@ impl Config {
             channel,
             admin_ids: Vec::new(),
             banned: Mutex::new(HashMap::new()),
+            templates: Template::default_templates(),
         }
     }
     pub fn keyboard(&self, user_id: UserId) -> ReplyMarkup {
+        use super::res::*;
         use KeyboardButton as KB;
         let mut keyboard = vec![
             vec![KB::new(CREATE), KB::new(PUBLISH)]
@@ -49,5 +52,29 @@ impl Config {
     }
     pub fn is_admin(&self, user_id: &UserId) -> bool {
         self.admin_ids.contains(user_id)
+    }
+    pub fn template(&self, template: Template) -> &str {
+        self.templates[template as usize].as_str()
+    }
+}
+
+#[derive(PartialEq, Hash, Clone, Copy, strum_macros::EnumCount)]
+#[repr(usize)]
+pub enum Template {
+    Help,
+    RequestPrice,
+    NotAPrice,
+    RequestDescription,
+}
+
+impl Template {
+    fn default_templates() -> [String; Template::COUNT] {
+        use Template::*;
+        let mut r: [String; Template::COUNT] = Default::default();
+        r[Help as usize] = super::res::HELP.into();
+        r[RequestPrice as usize]   = "Назови свою цену (число) в рублях".into();
+        r[NotAPrice as usize]     = "Это не цена, нужно прислать число".into();
+        r[RequestDescription as usize] = "Присылай описание или фотки".into();
+        r
     }
 }
