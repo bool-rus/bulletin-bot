@@ -64,7 +64,10 @@ pub enum Template {
     Help,
     RequestPrice,
     NotAPrice,
-    RequestDescription,
+    FillRequest,
+    ContinueFilling,
+    Published,
+    RemoveAd,
 }
 
 impl Template {
@@ -72,9 +75,12 @@ impl Template {
         use Template::*;
         let mut r: [String; Template::COUNT] = Default::default();
         r[Help as usize] = super::res::HELP.into();
-        r[RequestPrice as usize]   = "Назови свою цену (число) в рублях".into();
-        r[NotAPrice as usize]     = "Это не цена, нужно прислать число".into();
-        r[RequestDescription as usize] = "Присылай описание или фотки".into();
+        r[RequestPrice as usize]    = "Назови свою цену (число) в рублях".into();
+        r[NotAPrice as usize]       = "Это не цена, нужно прислать число".into();
+        r[FillRequest as usize]     = "Присылай описание или фотки".into();
+        r[ContinueFilling as usize] = "Теперь можешь заменить описание или добавить фото (не более 10)".into();
+        r[Published as usize]       = "Объявление опубликовано".into();
+        r[RemoveAd as usize]        = "Снять с публикации".into();
         r
     }
 }

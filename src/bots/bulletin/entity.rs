@@ -129,7 +129,7 @@ impl Signal {
     }
     pub fn filter_content(self) -> Option<Content> {
         match self.kind {
-            SignalKind::Content(c) => Some(c),
+            SignalKind::Content(c) => {log::info!("content: {:?}", c); Some(c)},
             _ => None,
         }
     }

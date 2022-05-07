@@ -19,7 +19,7 @@ async fn on_price_waiting(
 ) -> FSMResult {
     let msg = if let Some(price) = content.price() {
         dialogue.update(State::Filling(Ad::new(price))).await?;
-        conf.template(Tpl::RequestDescription)
+        conf.template(Tpl::FillRequest)
     } else {
         conf.template(Tpl::NotAPrice)
     };
@@ -32,10 +32,11 @@ async fn on_filling(
     dialogue: MyDialogue,
     mut ad: Ad,
     content: Content,
+    conf: Conf,
 ) -> FSMResult {
     ad.fill(content);
     dialogue.update(State::Filling(ad)).await?;
-    bot.send_message(dialogue.chat_id(), "Присылай описание или фотки").await?;
+    bot.send_message(dialogue.chat_id(), conf.template(Tpl::ContinueFilling)).await?;
     Ok(())
 }
 
@@ -67,15 +68,15 @@ async fn on_user_action(
             let msgs: Vec<_> = send_ad(bot.clone(), conf.clone(), conf.channel, user_id, &ad).await?.into_iter().map(|m|m.id).collect();
             bot.forward_message(chat_id, conf.channel, msgs[0]).await?;
             let data = ron::to_string(&CallbackResponse::Remove(msgs))?;
-            bot.send_message(chat_id, "Объявление опубликовано").parse_mode(ParseMode::MarkdownV2)
+            bot.send_message(chat_id, conf.template(Tpl::Published)).parse_mode(ParseMode::MarkdownV2)
             .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
-                InlineKeyboardButton::callback("Снять с публикации".to_owned(), data),
+                InlineKeyboardButton::callback(conf.template(Tpl::RemoveAd).into(), data),
             ])).await?;
             dialogue.exit().await?;
         },
         UserAction::No => if let State::Preview(ad) = dialogue.get_or_default().await? {
             dialogue.update(State::Filling(ad)).await?;
-            bot.send_message(chat_id, "можешь поправить публикацию").await?;
+            bot.send_message(chat_id, conf.template(Tpl::ContinueFilling)).await?;
         },
         UserAction::Remove(msgs) => for msg in msgs {
             bot.delete_message(conf.channel, msg).await?;
