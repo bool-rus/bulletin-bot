@@ -94,8 +94,8 @@ async fn on_publish(
     let user_id = UserId(u64::try_from(chat_id.0)?);
     match dialogue.get().await?.unwrap_or_default() {
         State::Filling(ad) => {
-            send_ad(bot.clone(), conf, chat_id, user_id, &ad).await?;
-            bot.send_message(chat_id, "Все верно?")
+            send_ad(bot.clone(), conf.clone(), chat_id, user_id, &ad).await?;
+            bot.send_message(chat_id, conf.template(Tpl::IsAllCorrect))
             .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
                 InlineKeyboardButton::callback("Да".to_owned(), ron::to_string(&CallbackResponse::Yes)?),
                 InlineKeyboardButton::callback("Нет".to_owned(), ron::to_string(&CallbackResponse::No)?),
@@ -103,13 +103,13 @@ async fn on_publish(
             dialogue.update(State::Preview(ad)).await?;
         },
         State::Preview(_) => {
-            bot.send_message(chat_id, "Посмотри публикацию, если все ок - жми Да").await?;
+            bot.send_message(chat_id, conf.template(Tpl::CheckPreview)).await?;
         },
         State::PriceWaitng => {
-            bot.send_message(chat_id, "Сначала давай цену").await?;
+            bot.send_message(chat_id, conf.template(Tpl::RequestPrice)).await?;
         },
         _ => {
-            bot.send_message(chat_id, "Сначала надо создать публикацию").await?;
+            bot.send_message(chat_id, conf.template(Tpl::FirstCreate)).await?;
         }
     }
     Ok(())

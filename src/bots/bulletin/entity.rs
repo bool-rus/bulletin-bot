@@ -68,7 +68,7 @@ impl Signal {
     pub fn from_update(u: Update) -> Option<Self> {
         let user;
         match u.kind {
-            UpdateKind::Message(msg) => {
+            UpdateKind::Message(msg) | UpdateKind::EditedMessage(msg) => {
                 let chat_id = msg.chat.id;
                 let kind = if let MessageKind::Common(msg) = msg.kind {
                     user = msg.from?;

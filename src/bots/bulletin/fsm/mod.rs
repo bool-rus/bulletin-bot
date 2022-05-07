@@ -6,6 +6,7 @@ use teloxide::types::{User, ParseMode, InlineKeyboardMarkup, InlineKeyboardButto
 use self::admin::process_admin;
 use self::user::process_user;
 
+use super::config::Template;
 use super::impls::send_ad;
 use super::*;
 
@@ -41,14 +42,15 @@ pub fn make_dialogue_handler() -> FSMHandler {
     .enter_dialogue::<Signal, MyStorage, State>()
     .branch(process_user(dptree::entry()))
     .branch(process_admin(dptree::entry()))
-    .endpoint(send_need_command)
+    .endpoint(on_wrong_message)
 }
 
 
-async fn send_need_command(
+async fn on_wrong_message(
     bot: WBot,
     dialogue: MyDialogue,
+    conf: Conf
 ) -> FSMResult {
-    bot.send_message(dialogue.chat_id(), "Введи какую-нибудь команду (или нажми кнопку)").await?;
+    bot.send_message(dialogue.chat_id(), conf.template(Template::WrongMessage)).await?;
     Ok(())
 }

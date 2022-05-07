@@ -68,6 +68,10 @@ pub enum Template {
     ContinueFilling,
     Published,
     RemoveAd,
+    WrongMessage,
+    IsAllCorrect,
+    CheckPreview,
+    FirstCreate,
 }
 
 impl Template {
@@ -81,6 +85,10 @@ impl Template {
         r[ContinueFilling as usize] = "Теперь можешь заменить описание или добавить фото (не более 10)".into();
         r[Published as usize]       = "Объявление опубликовано".into();
         r[RemoveAd as usize]        = "Снять с публикации".into();
+        r[WrongMessage as usize]    = "Что-то не то присылаешь".into();
+        r[IsAllCorrect as usize]    = "Все верно?".into();
+        r[CheckPreview as usize]    = "Посмотри публикацию, если все ок - жми Да".into();
+        r[FirstCreate as usize]     = "Сначала нажми кнопку [Создать] или отправь команду /create".into();
         r
     }
 }
