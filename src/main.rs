@@ -195,14 +195,14 @@ fn is_private<T: Message>(msg: &T) -> bool {
 async fn main() {
     init_logger();
 
-    let mut conf = bulletin::Config::new(
-         "5278794412:AAFqSFgFvU_oO4maxaHsdv0gQFCPtq-ycuw".to_owned(),
-        teloxide::types::ChatId(-1001657257723),
-    );
-    conf.add_admin(teloxide::types::UserId(212858650));
-    bulletin::start(conf);
+    // let mut conf = bulletin::Config::new(
+    //      "5278794412:AAFqSFgFvU_oO4maxaHsdv0gQFCPtq-ycuw".to_owned(),
+    //     teloxide::types::ChatId(-1001657257723),
+    // );
+    // conf.add_admin(teloxide::types::UserId(212858650));
+    bots::father::start("1664451950:AAFKLe7bVhzbjJ-G1aoDubjbNBCRQffntE0".into());
     tokio::signal::ctrl_c().await.expect("Failed to listen for ^C");
-    sleep(std::time::Duration::from_secs(5)).await;
+    //sleep(std::time::Duration::from_secs(5)).await;
     /* 
     use std::env::var;
     let channel = var("CHANNEL_ID").expect("Please, set env variable CHANNEL_ID")

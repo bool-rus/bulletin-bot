@@ -79,7 +79,7 @@ async fn on_user_action(
             bot.send_message(chat_id, conf.template(Tpl::ContinueFilling)).await?;
         },
         UserAction::Remove(msgs) => for msg in msgs {
-            bot.delete_message(conf.channel, msg).await?;
+            bot.delete_message(conf.channel, msg).await?; //TODO: обработать неудачное удаление
         },
     }
     Ok(())

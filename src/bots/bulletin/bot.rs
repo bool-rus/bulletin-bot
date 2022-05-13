@@ -5,8 +5,7 @@ use crate::impls::LoggableErrorResult;
 use super::*;
 use teloxide::types::BotCommand;
 
-pub fn start(config: Config) {
-    let config = Arc::new(config);
+pub fn start(config: Arc<Config>) {
     let bot = Bot::new(config.token.as_str()).auto_send();
     let storage = MyStorage::new();
     let mut dispatcher = Dispatcher::builder(bot.clone(), fsm::make_dialogue_handler())
