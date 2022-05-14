@@ -92,8 +92,9 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
     Ok(())
 }
 
-async fn cmd_on_ready(cmd: Command, bot: WBot, dialogue: MyDialogue, conf: Arc<BulletinConfig>) -> FSMResult {
+async fn cmd_on_ready(cmd: Command, bot: WBot, dialogue: MyDialogue, conf: Arc<BulletinConfig>, db: Arc<crate::pers::Storage>) -> FSMResult {
     if let Command::Start = cmd {
+        db.create_config(conf.token.clone(), conf.channel.0, dialogue.chat_id().0).await;
         super::bulletin::start(conf);
         bot.send_message(dialogue.chat_id(), "Бот запущен").await?;
     }

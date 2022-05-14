@@ -1,0 +1,71 @@
+{
+  "db": "SQLite",
+  "3f2bdf043c75f2cbb89cc4c61a42e6475b060e73b13dac8e35bc4c20cd70a060": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "insert into bot_admins values (?1, ?2)"
+  },
+  "66d414efe3fb304226b100e9f6d98fb86dd8684cd2abe8ac57b2d4abf3146bdb": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "insert into bots (token, channel) values (?1, ?2)"
+  },
+  "b40ff7d3004ad99b4d199ec575ecda3f93e735bd667d5f7141fad802385c376e": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "token",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "channel",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "select * from bots"
+  },
+  "de0add00fb32bcccf4b9ffc146ba1746db2fa34fe656a196ed757af924af11a8": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user",
+          "ordinal": 0,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select user from bot_admins where bot_id=?1"
+  }
+}
