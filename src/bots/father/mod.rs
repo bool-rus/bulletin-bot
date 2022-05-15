@@ -5,7 +5,7 @@ use super::*;
 use bulletin::Config as BulletinConfig;
 mod fsm;
 
-use crate::pers::Storage as DBStorage;
+use crate::{pers::Storage as DBStorage, impls::LoggableErrorResult};
 type MyStorage = teloxide::dispatching::dialogue::InMemStorage<fsm::State>;
 
 pub fn start(token: String, storage: Arc<DBStorage>) {
@@ -14,6 +14,7 @@ pub fn start(token: String, storage: Arc<DBStorage>) {
     .dependencies(dptree::deps![MyStorage::new(), storage])
     .build();
     tokio::spawn(async move {
+        bot.set_my_commands(fsm::bot_commands()).await.ok_or_log();
         dispatcher.setup_ctrlc_handler()
         .dispatch()
         .await;

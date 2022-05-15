@@ -8,9 +8,12 @@ async fn main() {
     init_logger();
     let storage = DBStorage::new().await;
     storage.all_configs().await.into_iter().for_each(|conf|bots::bulletin::start(conf.into()));
-    bots::father::start("1664451950:AAFKLe7bVhzbjJ-G1aoDubjbNBCRQffntE0".into(), storage);
+    bots::father::start(
+        std::env::var("TELEGRAM_BOT_TOKEN").expect("need to set env variable TELEGRAM_BOT_TOKEN"), 
+        storage
+    );
     tokio::signal::ctrl_c().await.expect("Failed to listen for ^C");
-    //sleep(std::time::Duration::from_secs(5)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 }
 
 fn init_logger() {
@@ -30,7 +33,7 @@ pub mod pers {
     static MIGRATOR: Migrator = sqlx::migrate!();
 
     async fn make_pool() -> SqlitePool {
-        let pool = SqlitePool::connect("sqlite://bulletin-configs2.db").await.unwrap();
+        let pool = SqlitePool::connect("sqlite://bulletin-configs.db").await.unwrap();
         MIGRATOR.run(&pool).await.unwrap();
         pool
     }

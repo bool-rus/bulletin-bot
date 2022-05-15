@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use teloxide::types::{MessageKind, ForwardedFrom};
+use teloxide::types::{MessageKind, ForwardedFrom, BotCommand};
 use teloxide::dispatching::UpdateFilterExt;
 use teloxide::utils::command::BotCommands;
 use teloxide::prelude::DependencyMap;
@@ -18,9 +18,14 @@ pub type FSMHandler = Handler<'static, DependencyMap, FSMResult, teloxide::dispa
 enum Command {
     #[command(description = "превед медвед")]
     Help,
-    #[command(description = "handle a username.")]
+    #[command(description = "создать бота")]
     NewBot,
+    #[command(description = "запустить бота")]
     Start,
+}
+
+pub fn bot_commands() -> Vec<BotCommand> {
+    Command::bot_commands()
 }
 
 #[derive(Clone)]
