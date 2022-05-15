@@ -12,16 +12,21 @@ type MyDialogue = Dialogue<State, MyStorage>;
 pub type FSMResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
 pub type FSMHandler = Handler<'static, DependencyMap, FSMResult, teloxide::dispatching::DpHandlerDescription>;
 
+const HELP: &str = "Привет! Чтобы создать бота барахолки, используй команду /newbot";
+const SEND_TOKEN: &str = "Для начала создай бота с помощью @BotFather.
+После создания бота он пришлет тебе токен. Вот этот токен надо прислать сюда.";
+const FORWARD: &str = "Отлично! Теперь нужно добавить этого бота в админы канала, чтобы он мог постить туда сообщения.
+А чтобы понимать, что это за канал - пересылай сюда любое сообщение оттуда.";
 
 #[derive(BotCommands, Clone)]
 #[command(rename = "lowercase", description = "These commands are supported:")]
 enum Command {
-    #[command(description = "превед медвед")]
+    #[command(description = "помощь")]
     Help,
     #[command(description = "создать бота")]
     NewBot,
     #[command(description = "запустить бота")]
-    Start,
+    StartBot,
 }
 
 pub fn bot_commands() -> Vec<BotCommand> {
@@ -58,14 +63,14 @@ pub fn make_dialogue_handler() -> FSMHandler {
 async fn cmd_on_start(cmd: Command, bot: WBot, dialogue: MyDialogue) -> FSMResult {
     match cmd {
         Command::Help => {
-            bot.send_message(dialogue.chat_id(), "HELP").await?;
+            bot.send_message(dialogue.chat_id(), HELP).await?;
         },
         Command::NewBot => {
             dialogue.update(State::WaitToken).await?;
-            bot.send_message(dialogue.chat_id(), "Присылай токен").await?;
+            bot.send_message(dialogue.chat_id(), SEND_TOKEN).await?;
         },
-        Command::Start => {
-            bot.send_message(dialogue.chat_id(), "Надо сначала создать бота").await?;
+        Command::StartBot => {
+            bot.send_message(dialogue.chat_id(), FORWARD).await?;
         },
     }
     Ok(())
@@ -87,7 +92,7 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
                     let mut conf = BulletinConfig::new(token, channel_id);
                     conf.add_admin(msg.from.unwrap().id);
                     dialogue.update(State::Ready(conf.into())).await?;
-                    bot.send_message(dialogue.chat_id(), "Бот готов").await?;
+                    bot.send_message(dialogue.chat_id(), "Бот готов. Чтобы запустить бота, используй команду /startbot").await?;
                 }
             }
         } 
@@ -98,7 +103,7 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
 }
 
 async fn cmd_on_ready(cmd: Command, bot: WBot, dialogue: MyDialogue, conf: Arc<BulletinConfig>, db: Arc<crate::pers::Storage>) -> FSMResult {
-    if let Command::Start = cmd {
+    if let Command::StartBot = cmd {
         db.create_config(conf.token.clone(), conf.channel.0, dialogue.chat_id().0).await;
         super::bulletin::start(conf);
         bot.send_message(dialogue.chat_id(), "Бот запущен").await?;

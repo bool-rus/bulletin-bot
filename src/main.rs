@@ -25,7 +25,7 @@ pub mod pers {
 
     use std::sync::Arc;
 
-    use sqlx::{migrate::Migrator, SqlitePool, Sqlite};
+    use sqlx::{migrate::Migrator, SqlitePool};
     use teloxide::types::{ChatId, UserId};
 
     use crate::bots::bulletin::Config;
