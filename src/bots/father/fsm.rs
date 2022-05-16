@@ -52,15 +52,16 @@ pub fn make_dialogue_handler() -> FSMHandler {
     .enter_dialogue::<Update, MyStorage, State>()
     .branch(
         dptree::entry().filter_command::<Command>()
-        .branch( teloxide::handler!(State::Start).endpoint(cmd_on_start) )
+        .branch( teloxide::handler!(State::WaitToken).endpoint(cmd_on_wait_token) )
         .branch( teloxide::handler!(State::Ready(conf)).endpoint(cmd_on_ready) )
+        .endpoint(on_command)
     )
     .branch( teloxide::handler!(State::WaitToken).endpoint(wait_token) )
     .branch( teloxide::handler!(State::WaitForward(token)).endpoint(wait_forward) )
     .endpoint(on_wrong_message)
 }
 
-async fn cmd_on_start(cmd: Command, bot: WBot, dialogue: MyDialogue) -> FSMResult {
+async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue) -> FSMResult {
     match cmd {
         Command::Help => {
             bot.send_message(dialogue.chat_id(), HELP).await?;
@@ -70,8 +71,18 @@ async fn cmd_on_start(cmd: Command, bot: WBot, dialogue: MyDialogue) -> FSMResul
             bot.send_message(dialogue.chat_id(), SEND_TOKEN).await?;
         },
         Command::StartBot => {
-            bot.send_message(dialogue.chat_id(), FORWARD).await?;
+            bot.send_message(dialogue.chat_id(), "Сначала используй команду /newbot").await?;
         },
+    }
+    Ok(())
+}
+
+async fn cmd_on_wait_token(cmd: Command, bot: WBot, dialogue: MyDialogue) -> FSMResult {
+    match cmd {
+        Command::StartBot => {
+            bot.send_message(dialogue.chat_id(), "Нужно переслать сообщение из канала").await?;
+        },
+        _ => return on_command(cmd, bot, dialogue).await,
     }
     Ok(())
 }
@@ -79,7 +90,7 @@ async fn cmd_on_start(cmd: Command, bot: WBot, dialogue: MyDialogue) -> FSMResul
 async fn wait_token(msg: Message, bot: WBot, dialogue: MyDialogue) -> FSMResult {
     let token = msg.text().ok_or("Empty token")?;
     dialogue.update(State::WaitForward(token.into())).await?;
-    bot.send_message(dialogue.chat_id(), "Теперь пересылай сообщение из канала").await?;
+    bot.send_message(dialogue.chat_id(), FORWARD).await?;
     Ok(())
 }
 
@@ -93,12 +104,12 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
                     conf.add_admin(msg.from.unwrap().id);
                     dialogue.update(State::Ready(conf.into())).await?;
                     bot.send_message(dialogue.chat_id(), "Бот готов. Чтобы запустить бота, используй команду /startbot").await?;
+                    return Ok(())
                 }
             }
         } 
-    } else {
-        bot.send_message(dialogue.chat_id(), "Это не то. Нужно переслать сообщение из канала").await?;
-    }
+    } 
+    bot.send_message(dialogue.chat_id(), "Это не то. Нужно переслать сообщение из канала").await?;
     Ok(())
 }
 
@@ -107,6 +118,9 @@ async fn cmd_on_ready(cmd: Command, bot: WBot, dialogue: MyDialogue, conf: Arc<B
         db.create_config(conf.token.clone(), conf.channel.0, dialogue.chat_id().0).await;
         super::bulletin::start(conf);
         bot.send_message(dialogue.chat_id(), "Бот запущен").await?;
+        dialogue.exit().await?;
+    } else {
+        on_command(cmd, bot, dialogue).await?;
     }
     Ok(())
 }
