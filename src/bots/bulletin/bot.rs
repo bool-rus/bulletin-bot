@@ -1,7 +1,4 @@
 use std::sync::Arc;
-
-use crate::impls::LoggableErrorResult;
-
 use super::*;
 use teloxide::types::BotCommand;
 
