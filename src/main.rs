@@ -45,8 +45,9 @@ pub mod pers {
             Arc::new(Self(make_pool().await))
         }
         pub async fn create_config(&self, token: String, channel: i64, admin_id: i64) -> Config {
-            let mut config = Config::new(token.clone(), ChatId(channel));
-            config.add_admin(UserId(admin_id as u64));
+            let config = Config::new(token.clone(), ChatId(channel));
+            //TODO: use correct name
+            config.add_admin(UserId(admin_id as u64), "owned".into());
             let mut conn = self.0.acquire().await.unwrap();
             let bot_id = sqlx::query!("insert into bots (token, channel) values (?1, ?2)", token, channel)
             .execute(&mut conn)
@@ -62,10 +63,11 @@ pub mod pers {
             let mut res = Vec::with_capacity(recs.len());
             for r in recs {
                 let id = r.id;
-                let mut conf = Config::new(r.token, ChatId(r.channel));
+                let conf = Config::new(r.token, ChatId(r.channel));
                 let admins = sqlx::query!("select user from bot_admins where bot_id=?1", id)
                 .fetch_all(&mut conn).await.unwrap();
-                admins.iter().for_each(|r|conf.add_admin(UserId(r.user as u64)));
+                //TODO: use correct name
+                admins.iter().for_each(|r|conf.add_admin(UserId(r.user as u64), "owner".into()));
                 res.push(conf);
             }
             res

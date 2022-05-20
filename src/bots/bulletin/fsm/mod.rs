@@ -29,6 +29,7 @@ pub enum State {
     WaitForward,
     WaitCause(UserId),
     WaitSelectBanned,
+    WaitForwardForAdmin,
 }
 
 impl Default for State {

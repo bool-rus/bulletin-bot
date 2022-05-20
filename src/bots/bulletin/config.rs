@@ -6,7 +6,7 @@ use teloxide::types::{UserId, ChatId, KeyboardButton, ReplyMarkup};
 
 pub struct Config {
     pub token: String, 
-    pub admin_ids: Vec<UserId>,
+    pub admins: Mutex<HashMap<UserId, String>>,
     pub channel: ChatId,
     templates: [String; Template::COUNT],
     banned: Mutex<HashMap<UserId, String>>,
@@ -17,7 +17,7 @@ impl Config {
         Self {
             token,
             channel,
-            admin_ids: Vec::new(),
+            admins: Mutex::new(HashMap::new()),
             banned: Mutex::new(HashMap::new()),
             templates: Template::default_templates(),
         }
@@ -29,14 +29,19 @@ impl Config {
             vec![KB::new(CREATE), KB::new(PUBLISH)]
         ];
         if self.is_admin(&user_id) {
-            keyboard.push(
-                vec![KB::new(BAN), KB::new(UNBAN)]
-            )
+            keyboard.push(vec![KB::new(BAN), KB::new(UNBAN)]);
+            keyboard.push(vec![KB::new(ADD_ADMIN), KB::new(REMOVE_ADMIN)]);
         }
         ReplyMarkup::keyboard(keyboard)
     }
-    pub fn add_admin(&mut self, user_id: UserId) {
-        self.admin_ids.push(user_id);
+    pub fn add_admin(&self, user_id: UserId, name: String) {
+        self.admins.lock().unwrap().insert(user_id, name);
+    }
+    pub fn remove_admin(&self, user_id: UserId) -> Option<String> {
+        self.admins.lock().unwrap().remove(&user_id)
+    }
+    pub fn admins(&self) -> Vec<(UserId, String)> {
+        self.admins.lock().unwrap().iter().map(|(k,v)|(*k, v.clone())).collect()
     }
     pub fn ban(&self, user_id: UserId, cause: String) {
         self.banned.lock().unwrap().insert(user_id, cause);
@@ -51,7 +56,7 @@ impl Config {
         self.banned.lock().unwrap().get(user_id).cloned()
     }
     pub fn is_admin(&self, user_id: &UserId) -> bool {
-        self.admin_ids.contains(user_id)
+        self.admins.lock().unwrap().contains_key(user_id)
     }
     pub fn template(&self, template: Template) -> &str {
         self.templates[template as usize].as_str()

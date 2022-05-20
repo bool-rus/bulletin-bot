@@ -17,6 +17,7 @@ pub enum CallbackResponse {
     No,
     User(UserId),
     Remove(Vec<MessageId>),
+    AdminToRemove(UserId),
 }
 
 #[derive(Clone, Debug)]
@@ -31,6 +32,8 @@ enum Command {
     Publish,
     Ban,
     Unban,
+    AddAdmin,
+    RemoveAdmin,
 }
 
 #[derive(Clone, Debug)]
@@ -48,6 +51,9 @@ pub enum AdminAction {
     Ban,
     Unban,
     UserToUnban(UserId),
+    AddAdmin,
+    RemoveAdmin,
+    AdminToRemove(UserId),
 }
 
 #[derive(Clone, Debug)]
@@ -154,6 +160,8 @@ impl FromStr for Command {
             "/publish" | PUBLISH => Ok(Self::Publish),
             "/ban" | BAN => Ok(Self::Ban),
             "/unban" | UNBAN => Ok(Self::Unban),
+            ADD_ADMIN => Ok(Self::AddAdmin),
+            REMOVE_ADMIN => Ok(Self::RemoveAdmin),
             _ => Err(())
         }
     }
@@ -165,6 +173,8 @@ impl Into<SignalKind> for Command {
         match self {
             Command::Ban => SK::AdminAction(AdminAction::Ban),
             Command::Unban => SK::AdminAction(AdminAction::Unban),
+            Command::AddAdmin => SK::AdminAction(AdminAction::AddAdmin),
+            Command::RemoveAdmin => SK::AdminAction(AdminAction::RemoveAdmin),
             Command::Help => SK::UserAction(UserAction::Help),
             Command::Create => SK::UserAction(UserAction::Create),
             Command::Publish => SK::UserAction(UserAction::Publish),
@@ -179,6 +189,7 @@ impl Into<SignalKind> for CallbackResponse {
             CallbackResponse::Yes => SK::UserAction(UserAction::Yes),
             CallbackResponse::No => SK::UserAction(UserAction::No),
             CallbackResponse::User(u) => SK::AdminAction(AdminAction::UserToUnban(u)),
+            CallbackResponse::AdminToRemove(u) => SK::AdminAction(AdminAction::AdminToRemove(u)),
             CallbackResponse::Remove(msgs) => SK::UserAction(UserAction::Remove(msgs)),
         }
     }

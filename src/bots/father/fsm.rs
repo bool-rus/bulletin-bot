@@ -100,8 +100,12 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
             if let ForwardedFrom::Chat(chat) = forward.from {
                 if chat.is_channel() {
                     let channel_id = chat.id;
-                    let mut conf = BulletinConfig::new(token, channel_id);
-                    conf.add_admin(msg.from.unwrap().id);
+                    let conf = BulletinConfig::new(token, channel_id);
+                    let admin = msg.from.ok_or("Cannot invoke user for message (admin of bot)")?;
+                    let name = admin.first_name;
+                    let last_name = admin.last_name.as_ref().map(|s|format!(" {}", s)).unwrap_or_default();
+                    let nick = admin.username.as_ref().map(|s|format!(" ({})", s)).unwrap_or_default();
+                    conf.add_admin(admin.id, format!("{name}{last_name}{nick}"));
                     dialogue.update(State::Ready(conf.into())).await?;
                     bot.send_message(dialogue.chat_id(), "Бот готов. Чтобы запустить бота, используй команду /startbot").await?;
                     return Ok(())

@@ -11,6 +11,7 @@ pub fn process_admin(handler: FSMHandler) -> FSMHandler {
             dptree::filter_map(Signal::filter_content)
             .branch(handler![State::WaitForward].endpoint(on_wait_forward))
             .branch(handler![State::WaitCause(user_id)].endpoint(on_wait_cause))
+            .branch(handler![State::WaitForwardForAdmin].endpoint(on_wait_forward_for_admin))
         )
     )
 }
@@ -49,6 +50,25 @@ async fn on_action(
             bot.send_message(dialogue.chat_id(), "Разбанен").await?;
             dialogue.exit().await?;
         },
+        AdminAction::AddAdmin => {
+            bot.send_message(dialogue.chat_id(), "Пересылай сообщение от человека - сделаем его админом").await?;
+            dialogue.update(State::WaitForwardForAdmin).await?;
+        },
+        AdminAction::RemoveAdmin => {
+            let markup = InlineKeyboardMarkup::default().inline_keyboard(conf.admins().into_iter()
+                .map(|(id, name)|InlineKeyboardButton::callback(
+                    name, 
+                    ron::to_string(&CallbackResponse::AdminToRemove(id)).unwrap())
+                )
+                .map(|btn|vec![btn])
+            );
+            bot.send_message(dialogue.chat_id(), "Выбери, кого разжаловать").reply_markup(markup).await?;
+        }
+        AdminAction::AdminToRemove(u) => {
+            if let Some(name) = conf.remove_admin(u) {
+                bot.send_message(dialogue.chat_id(), format!("{name} больше не админ")).await?;
+            }
+        }
     }
     Ok(())
 }
@@ -94,4 +114,19 @@ fn invoke_author(content: &Content) -> Option<&User> {
         teloxide::types::MessageEntityKind::TextMention{ref user} => Some(user),
         _ => None
     }
+}
+
+async fn on_wait_forward_for_admin(upd: Update, dialogue: MyDialogue, conf: Conf, bot: WBot) -> FSMResult {
+    if let teloxide::types::UpdateKind::Message(msg) = upd.kind {
+        if let Some(admin) = msg.forward_from_user() {
+            let name = admin.first_name.as_str();
+            let last_name = admin.last_name.as_ref().map(|s|format!(" {}", s)).unwrap_or_default();
+            let nick = admin.username.as_ref().map(|s|format!(" ({})", s)).unwrap_or_default();
+            conf.add_admin(admin.id, format!("{name}{last_name}{nick}"));
+            bot.send_message(dialogue.chat_id(), "Отлично! Новый админ добавлен!").await?;
+            return Ok(())
+        }
+    }
+    bot.send_message(dialogue.chat_id(), "Это не то. Нужно переслать любое сообщение от человека, которого ты хочешь сделать админом").await?;
+    Ok(())
 }
