@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use teloxide::types::{MessageKind, ForwardedFrom, BotCommand};
+use teloxide::RequestError;
+use teloxide::types::{MessageKind, ForwardedFrom, BotCommand, Me};
 use teloxide::dispatching::UpdateFilterExt;
 use teloxide::utils::command::BotCommands;
 use teloxide::prelude::DependencyMap;
@@ -116,16 +117,29 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
 
 async fn cmd_on_ready(upd: Update, cmd: Command, bot: WBot, dialogue: MyDialogue, conf: Arc<BulletinConfig>, sender: Arc<Sender<DBAction>>) -> FSMResult {
     if let Command::StartBot = cmd {
-        sender.send(DBAction::CreateConfig(conf.clone()));
-        bulletin::start(conf);
-        bot.send_message(dialogue.chat_id(), "Бот запущен").await?;
-        dialogue.exit().await?;
+        match check_bot(conf.token.clone()).await {
+            Ok(me) => {
+                sender.send(DBAction::CreateConfig(conf.clone())).ok_or_log();
+                bulletin::start(conf);
+                bot.send_message(dialogue.chat_id(), format!("Бот @{} запущен", me.username())).await?;
+                dialogue.exit().await?;
+            },
+            Err(e) => {
+                log::error!("cannot create bot: {:?}", e);
+                bot.send_message(dialogue.chat_id(), "Токен не подходит. Попробуй сначала").await?;
+                dialogue.exit().await?;
+            },
+        }
     } else {
         on_command(cmd, bot, dialogue).await?;
     }
     Ok(())
 }
 
+async fn check_bot(token: String) -> Result<Me, RequestError> {
+    let bot = Bot::new(token);
+    bot.get_me().send().await
+}
 
 async fn on_wrong_message() -> FSMResult {
     Ok(())

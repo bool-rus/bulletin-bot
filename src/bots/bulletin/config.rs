@@ -66,8 +66,6 @@ impl Config {
         self.banned.lock().unwrap().get(user_id).cloned()
     }
     pub fn is_admin(&self, user_id: &UserId) -> bool {
-
-        log::info!("ADMINS: {:?}, user: {:?}", self.admins, user_id);
         self.admins.lock().unwrap().contains_key(user_id)
     }
     pub fn template(&self, template: Template) -> &str {
