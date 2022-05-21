@@ -115,7 +115,7 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
     Ok(())
 }
 
-async fn cmd_on_ready(upd: Update, cmd: Command, bot: WBot, dialogue: MyDialogue, conf: Arc<BulletinConfig>, sender: Arc<Sender<DBAction>>) -> FSMResult {
+async fn cmd_on_ready(cmd: Command, bot: WBot, dialogue: MyDialogue, conf: Arc<BulletinConfig>, sender: Arc<Sender<DBAction>>) -> FSMResult {
     if let Command::StartBot = cmd {
         match check_bot(conf.token.clone()).await {
             Ok(me) => {

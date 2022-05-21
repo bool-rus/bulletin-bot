@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use strum::EnumCount;
 use teloxide::types::{UserId, ChatId, KeyboardButton, ReplyMarkup};
 
-use crate::persistent::DBAction;
+use crate::{persistent::DBAction, impls::LoggableErrorResult};
 
 pub struct Config {
     pub token: String, 
@@ -44,10 +44,10 @@ impl Config {
     }
     pub fn add_admin(&self, user_id: UserId, name: String) {
         self.admins.lock().unwrap().insert(user_id, name.clone());
-        self.sender.send(DBAction::AddAdmin(user_id.0 as i64, name));
+        self.sender.send(DBAction::AddAdmin(user_id.0 as i64, name)).ok_or_log();
     }
     pub fn remove_admin(&self, user_id: UserId) -> Option<String> {
-        self.sender.send(DBAction::RemoveAdmin(user_id.0 as i64));
+        self.sender.send(DBAction::RemoveAdmin(user_id.0 as i64)).ok_or_log();
         self.admins.lock().unwrap().remove(&user_id)
     }
     pub fn admins(&self) -> Vec<(UserId, String)> {
