@@ -1,6 +1,6 @@
 {
   "db": "SQLite",
-  "3f2bdf043c75f2cbb89cc4c61a42e6475b060e73b13dac8e35bc4c20cd70a060": {
+  "1eb5b780ded996bb43dd041cbe19f4015f2d06dc73d2e98246bc542f12a50c4c": {
     "describe": {
       "columns": [],
       "nullable": [],
@@ -8,7 +8,7 @@
         "Right": 2
       }
     },
-    "query": "insert into bot_admins values (?1, ?2)"
+    "query": "delete from bot_admins where bot_id = ?1 and user = ?2"
   },
   "66d414efe3fb304226b100e9f6d98fb86dd8684cd2abe8ac57b2d4abf3146bdb": {
     "describe": {
@@ -49,6 +49,16 @@
       }
     },
     "query": "select * from bots"
+  },
+  "c3869a9aa3a5cc48558f84bbc0f8de64431f7eb1d13d816ed6c786918525cbc4": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "insert into bot_admins values (?1, ?2, ?3)"
   },
   "de0add00fb32bcccf4b9ffc146ba1746db2fa34fe656a196ed757af924af11a8": {
     "describe": {

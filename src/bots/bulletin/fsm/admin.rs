@@ -119,10 +119,7 @@ fn invoke_author(content: &Content) -> Option<&User> {
 async fn on_wait_forward_for_admin(upd: Update, dialogue: MyDialogue, conf: Conf, bot: WBot) -> FSMResult {
     if let teloxide::types::UpdateKind::Message(msg) = upd.kind {
         if let Some(admin) = msg.forward_from_user() {
-            let name = admin.first_name.as_str();
-            let last_name = admin.last_name.as_ref().map(|s|format!(" {}", s)).unwrap_or_default();
-            let nick = admin.username.as_ref().map(|s|format!(" ({})", s)).unwrap_or_default();
-            conf.add_admin(admin.id, format!("{name}{last_name}{nick}"));
+            conf.add_admin(admin.id, make_username(admin));
             bot.send_message(dialogue.chat_id(), "Отлично! Новый админ добавлен!").await?;
             return Ok(())
         }

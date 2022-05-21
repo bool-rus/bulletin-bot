@@ -5,7 +5,7 @@ use ad::Ad;
 
 pub use config::Config;
 pub use bot::start;
-
+use super::make_username;
 
 type MyStorage = teloxide::dispatching::dialogue::InMemStorage<fsm::State>;
 type Price = u32;

@@ -1,0 +1,1 @@
+ALTER TABLE bot_admins ADD username TEXT NOT NULL DEFAULT 'OWNER';

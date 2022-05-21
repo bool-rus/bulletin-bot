@@ -4,20 +4,28 @@ use std::sync::Mutex;
 use strum::EnumCount;
 use teloxide::types::{UserId, ChatId, KeyboardButton, ReplyMarkup};
 
+use crate::persistent::DBAction;
+
 pub struct Config {
     pub token: String, 
     pub admins: Mutex<HashMap<UserId, String>>,
     pub channel: ChatId,
+    sender: crossbeam::channel::Sender<DBAction>,
+    pub receiver: crossbeam::channel::Receiver<DBAction>,
     templates: [String; Template::COUNT],
     banned: Mutex<HashMap<UserId, String>>,
 }
 
 impl Config {
-    pub fn new(token: String, channel: ChatId) -> Self {
+    pub fn new(token: String, channel: ChatId, admins: Vec<(UserId, String)>) -> Self {
+        let (sender, receiver) = crossbeam::channel::unbounded();
+        let admins = admins.into_iter().collect();
         Self {
             token,
             channel,
-            admins: Mutex::new(HashMap::new()),
+            sender,
+            receiver,
+            admins: Mutex::new(admins),
             banned: Mutex::new(HashMap::new()),
             templates: Template::default_templates(),
         }
@@ -35,9 +43,11 @@ impl Config {
         ReplyMarkup::keyboard(keyboard)
     }
     pub fn add_admin(&self, user_id: UserId, name: String) {
-        self.admins.lock().unwrap().insert(user_id, name);
+        self.admins.lock().unwrap().insert(user_id, name.clone());
+        self.sender.send(DBAction::AddAdmin(user_id.0 as i64, name));
     }
     pub fn remove_admin(&self, user_id: UserId) -> Option<String> {
+        self.sender.send(DBAction::RemoveAdmin(user_id.0 as i64));
         self.admins.lock().unwrap().remove(&user_id)
     }
     pub fn admins(&self) -> Vec<(UserId, String)> {
@@ -56,6 +66,8 @@ impl Config {
         self.banned.lock().unwrap().get(user_id).cloned()
     }
     pub fn is_admin(&self, user_id: &UserId) -> bool {
+
+        log::info!("ADMINS: {:?}, user: {:?}", self.admins, user_id);
         self.admins.lock().unwrap().contains_key(user_id)
     }
     pub fn template(&self, template: Template) -> &str {
