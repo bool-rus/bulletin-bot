@@ -87,6 +87,8 @@ pub enum Template {
     IsAllCorrect,
     CheckPreview,
     FirstCreate,
+    AdRemoved,
+    CannotRemoveAd,
 }
 
 impl Template {
@@ -104,6 +106,8 @@ impl Template {
         r[IsAllCorrect as usize]    = "Все верно?".into();
         r[CheckPreview as usize]    = "Посмотри публикацию, если все ок - жми Да".into();
         r[FirstCreate as usize]     = "Сначала нажми кнопку [Создать] или отправь команду /create".into();
+        r[AdRemoved as usize]       = "Публикация удалена".into();
+        r[CannotRemoveAd as usize]  = "Не удалось удалить публикацию. Возможно, прошло более 48 часов".into();
         r
     }
 }

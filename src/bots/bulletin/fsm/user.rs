@@ -41,6 +41,7 @@ async fn on_filling(
 }
 
 async fn on_user_action(
+    upd: Update,
     bot: WBot,
     dialogue: MyDialogue,
     action: UserAction,
@@ -79,9 +80,25 @@ async fn on_user_action(
             dialogue.update(State::Filling(ad)).await?;
             bot.send_message(chat_id, conf.template(Tpl::ContinueFilling)).await?;
         },
-        UserAction::Remove(msgs) => for msg in msgs {
-            bot.delete_message(conf.channel, msg).await?; //TODO: обработать неудачное удаление
+        UserAction::Remove(msgs) => {
+            let text = match delete_msgs(&bot, msgs, &conf).await {
+                Ok(_) => conf.template(Tpl::AdRemoved),
+                Err(e) => {
+                    log::error!("Err on remove ad: {:?}", e);
+                    conf.template(Tpl::CannotRemoveAd)
+                }
+            };
+            if let teloxide::types::UpdateKind::CallbackQuery(ref q) = upd.kind {
+                bot.answer_callback_query(q.id.clone()).text(text).await?;
+            };
         },
+    }
+    Ok(())
+}
+
+async fn delete_msgs(bot: &WBot, ids: Vec<i32>, conf: &Conf) -> FSMResult {
+    for id in ids {
+        bot.delete_message(conf.channel, id).await?;
     }
     Ok(())
 }
