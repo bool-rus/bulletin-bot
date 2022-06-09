@@ -4,11 +4,14 @@ use teloxide::utils::markdown::*;
 
 
 fn make_ad_text(user: &User, ad: &Ad) -> String {
+    let user_id = user.id.0.try_into().unwrap();
+    let user_link = format!("https://tg.com?{}", user_id);
+    let user_link = link(&user_link, " ");
     let text = escape(&ad.text);
     let price = bold(&format!("{} ₽", ad.price));
     let full_name = escape(&user.full_name());
-    let sign = user_mention(user.id.0.try_into().unwrap(), &full_name);
-    format!("{}\n\n{}\n{}\n", text, price, sign)
+    let sign = user_mention(user_id, &full_name);
+    format!("{}\n\n{}\n{}\n",user_link + &text, price, sign)
 }
 
 pub async fn send_ad(bot: WBot, conf: fsm::Conf, target_chat_id: ChatId, user_id: UserId, ad: &Ad) -> Result<Vec<Message>, Box<dyn std::error::Error + Send + Sync>> {

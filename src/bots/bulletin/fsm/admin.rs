@@ -78,8 +78,8 @@ async fn on_wait_forward(
     dialogue: MyDialogue,
     content: Content
 ) -> FSMResult {
-    if let Some(user) = invoke_author(&content) {
-        dialogue.update(State::WaitCause(user.id)).await?;
+    if let Some(user_id) = invoke_author(&content) {
+        dialogue.update(State::WaitCause(user_id)).await?;
         bot.send_message(dialogue.chat_id(), "Пиши причину").await?;
     } else {
         bot.send_message(dialogue.chat_id(), "Это не публикация").await?;
@@ -104,14 +104,24 @@ async fn on_wait_cause(
     Ok(())
 }
 
-fn invoke_author(content: &Content) -> Option<&User> {
+fn invoke_author(content: &Content) -> Option<UserId> {
     let text = match content {
         Content::Text(text) => text,
         Content::TextAndPhoto(text, _) => text,
         _ => None?,
     };
+    match text.entities.first()?.kind {
+        teloxide::types::MessageEntityKind::TextLink {ref url} => {
+            if let Some(user_id) = url.query().map(|q|q.parse().ok()).flatten() {
+                return Some(UserId(user_id));
+            }
+        }
+        _ => {}
+    }
+    //легаси, через время удалить
+    log::warn!("cannot invoke author: {:?}", text);
     match text.entities.last()?.kind {
-        teloxide::types::MessageEntityKind::TextMention{ref user} => Some(user),
+        teloxide::types::MessageEntityKind::TextMention{ref user} => Some(user.id),
         _ => None
     }
 }
