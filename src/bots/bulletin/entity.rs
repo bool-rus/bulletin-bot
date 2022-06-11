@@ -5,7 +5,7 @@ use super::res::*;
 use serde::{Serialize, Deserialize};
 
 use teloxide::dispatching::dialogue::GetChatId;
-use teloxide::types::{UserId, Update, ChatId, UpdateKind, MessageKind, MediaKind, User, MediaText};
+use teloxide::types::{UserId, Update, ChatId, UpdateKind, MessageKind, MediaKind, User, MediaText, MessageCommon};
 
 type MessageId = i32;
 
@@ -77,25 +77,12 @@ impl Signal {
             UpdateKind::Message(msg) | UpdateKind::EditedMessage(msg) => {
                 let chat_id = msg.chat.id;
                 let kind = if let MessageKind::Common(msg) = msg.kind {
-                    user = msg.from?;
-                    match msg.media_kind {
-                        MediaKind::Photo(mut photo) => {
-                            photo.photo.sort_unstable_by_key(|size|size.height);
-                            let best_size = photo.photo.last()?.file_id.clone();
-                            let entities = photo.caption_entities;
-                            match photo.caption {
-                                Some(text) => SignalKind::Content(Content::TextAndPhoto(MediaText { text, entities }, best_size)),
-                                None => SignalKind::Content(Content::Photo(best_size)),
-                            }
-                        },
-                        MediaKind::Text(m) => {
-                            let text = m.text.as_str();
-                            match Command::from_str(text) {
-                                Ok(cmd) => cmd.into(),
-                                Err(_) => SignalKind::Content(Content::Text(m)),
-                            }
-                        },
-                        _ => return None
+                    user = msg.from.as_ref().cloned()?;
+                    let content = message_to_content(msg)?;
+                    if let Some(cmd) = content.command() {
+                        cmd.into()
+                    } else {
+                        SignalKind::Content(content)
                     }
                 } else {
                     return None
@@ -204,4 +191,29 @@ impl Content {
             _ => None
         }
     }
+    fn command(&self) -> Option<Command> {
+        match self {
+            Self::Text(txt) => {
+                Command::from_str(txt.text.as_str()).ok()
+            }
+            _ => None
+        }
+    }
+}
+
+pub fn message_to_content(msg: MessageCommon) -> Option<Content> {
+    let content = match msg.media_kind {
+        MediaKind::Photo(mut photo) => {
+            photo.photo.sort_unstable_by_key(|size|size.height);
+            let best_size = photo.photo.last()?.file_id.clone();
+            let entities = photo.caption_entities;
+            match photo.caption {
+                Some(text) => Content::TextAndPhoto(MediaText { text, entities }, best_size),
+                None => Content::Photo(best_size),
+            }
+        },
+        MediaKind::Text(m) => Content::Text(m),
+        _ => return None
+    };
+    Some(content)
 }

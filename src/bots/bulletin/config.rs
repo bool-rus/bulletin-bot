@@ -89,6 +89,7 @@ pub enum Template {
     FirstCreate,
     AdRemoved,
     CannotRemoveAd,
+    NewComment,
 }
 
 impl Template {
@@ -108,6 +109,7 @@ impl Template {
         r[FirstCreate as usize]     = "Сначала нажми кнопку [Создать] или отправь команду /create".into();
         r[AdRemoved as usize]       = "Публикация удалена".into();
         r[CannotRemoveAd as usize]  = "Не удалось удалить публикацию. Возможно, прошло более 48 часов".into();
+        r[NewComment as usize]      = "Добавлен новый комментарий".into();
         r
     }
 }

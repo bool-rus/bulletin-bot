@@ -14,6 +14,20 @@ fn make_ad_text(user: &User, ad: &Ad) -> String {
     format!("{}\n\n{}\n{}\n",user_link + &text, price, sign)
 }
 
+pub fn make_message_link(text: &str, msg: &Message) -> Option<String> {
+    let text = escape(text);
+    let mut words: Vec<_> = text.split(" ").collect();
+    let mut url = msg.url()?.to_string();
+    if let Some(reply) = msg.reply_to_message() {
+        let mut chars = url.chars();
+        chars.next_back();
+        url = format!("{}?thread={}", chars.as_str(), reply.id);
+    }
+    let msg_link = link(&url, words.iter().last()?);
+    *words.iter_mut().last().unwrap() = msg_link.as_str();
+    Some(words.join(" "))
+}
+
 pub async fn send_ad(bot: WBot, conf: fsm::Conf, target_chat_id: ChatId, user_id: UserId, ad: &Ad) -> Result<Vec<Message>, Box<dyn std::error::Error + Send + Sync>> {
 
     let chat_member = bot.get_chat_member(conf.channel, user_id).await?;
