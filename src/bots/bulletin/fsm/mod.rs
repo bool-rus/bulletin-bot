@@ -1,7 +1,7 @@
 
 use teloxide::dispatching::UpdateFilterExt;
 use teloxide::payloads::SendMessageSetters;
-use teloxide::types::{ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId, MessageKind, MediaKind};
+use teloxide::types::{ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId, MessageKind};
 
 
 use self::admin::process_admin;
