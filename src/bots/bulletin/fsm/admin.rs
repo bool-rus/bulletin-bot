@@ -3,21 +3,14 @@ use teloxide::handler;
 use super::*;
 
 pub fn process_admin(handler: FSMHandler) -> FSMHandler {
-    handler.branch( 
-        dptree::filter(filter_admin)
-        .branch(
-            dptree::filter_map(Signal::filter_admin_action).endpoint(on_action)
-        ).branch(
-            dptree::filter_map(Signal::filter_content)
-            .branch(handler![State::WaitForward].endpoint(on_wait_forward))
-            .branch(handler![State::WaitCause(user_id)].endpoint(on_wait_cause))
-            .branch(handler![State::WaitForwardForAdmin].endpoint(on_wait_forward_for_admin))
-        )
+    handler.branch(
+        dptree::filter_map(Signal::filter_admin_action).endpoint(on_action)
+    ).branch(
+        dptree::filter_map(Signal::filter_content)
+        .branch(handler![State::WaitForward].endpoint(on_wait_forward))
+        .branch(handler![State::WaitCause(user_id)].endpoint(on_wait_cause))
+        .branch(handler![State::WaitForwardForAdmin].endpoint(on_wait_forward_for_admin))
     )
-}
-
-fn filter_admin(signal: Signal, conf: Conf) -> bool {
-    conf.is_admin(&signal.user().id)
 }
 
 async fn on_action(

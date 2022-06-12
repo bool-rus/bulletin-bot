@@ -44,12 +44,18 @@ pub fn make_dialogue_handler() -> FSMHandler {
     let private_handler = dptree::filter_map(Signal::from_update)
     .enter_dialogue::<Signal, MyStorage, State>()
     .branch(process_user(dptree::entry()))
-    .branch(process_admin(dptree::entry()))
+    .branch(process_admin(dptree::filter(filter_admin)))
     .endpoint(on_wrong_message);
     dptree::entry()
     .branch(dptree::filter(filter_private).chain(private_handler))
     .branch(dptree::filter_map(GroupMessage::from_update).endpoint(on_group_message))
 }
+
+
+fn filter_admin(upd: Update, conf: Conf) -> bool {
+    upd.user().map(|user|conf.is_admin(&user.id)).unwrap_or(false)
+}
+
 
 async fn on_group_message(msg: GroupMessage, bot: WBot, conf: Conf) -> FSMResult {
     let text = conf.template(Template::NewComment);
@@ -63,6 +69,10 @@ async fn on_group_message(msg: GroupMessage, bot: WBot, conf: Conf) -> FSMResult
         } 
     }
     Ok(())
+}
+
+async fn on_admin_message() {
+
 }
 
 fn invoke_author(content: &Content) -> Option<UserId> {
