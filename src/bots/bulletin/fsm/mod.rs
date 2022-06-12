@@ -55,9 +55,11 @@ async fn on_group_message(msg: GroupMessage, bot: WBot, conf: Conf) -> FSMResult
     let text = conf.template(Template::NewComment);
     let text = impls::make_message_link(text, &msg.url, msg.thread).unwrap_or(text.into());
     if msg.replied_author == TELEGRAM_USER_ID {
-        if let Some(UserId(id)) = invoke_author(&msg.replied_content) {
-            let chat_id = teloxide::types::ChatId(id as i64);
-            bot.send_message(chat_id, text).parse_mode(ParseMode::MarkdownV2).await?;
+        if let Some(user_id) = invoke_author(&msg.replied_content) {
+            if user_id != msg.author { 
+                let chat_id = teloxide::types::ChatId(user_id.0 as i64);
+                bot.send_message(chat_id, text).parse_mode(ParseMode::MarkdownV2).await?;
+            }
         } 
     }
     Ok(())
