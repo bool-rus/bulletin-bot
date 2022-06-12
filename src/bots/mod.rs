@@ -4,6 +4,8 @@ use crate::persistent::DBAction;
 pub mod bulletin;
 pub mod father;
 
+pub const TELEGRAM_USER_ID: UserId = UserId(777000);
+
 type WrappedBot = AutoSend<Bot>;
 
 fn make_username(user: &teloxide::types::User) -> String {

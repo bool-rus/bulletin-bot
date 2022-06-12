@@ -1,8 +1,9 @@
 
-use teloxide::dispatching::UpdateFilterExt;
 use teloxide::payloads::SendMessageSetters;
-use teloxide::types::{ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId, MessageKind};
+use teloxide::types::{ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId};
 
+
+use crate::bots::TELEGRAM_USER_ID;
 
 use self::admin::process_admin;
 use self::user::process_user;
@@ -47,27 +48,20 @@ pub fn make_dialogue_handler() -> FSMHandler {
     .endpoint(on_wrong_message);
     dptree::entry()
     .branch(dptree::filter(filter_private).chain(private_handler))
-    .branch(Update::filter_message().endpoint(on_group_message))
+    .branch(dptree::filter_map(GroupMessage::from_update).endpoint(on_group_message))
 }
 
-async fn on_group_message(msg: Message, bot: WBot, conf: Conf) -> FSMResult {
+async fn on_group_message(msg: GroupMessage, bot: WBot, conf: Conf) -> FSMResult {
     let text = conf.template(Template::NewComment);
-    let text = impls::make_message_link(text, &msg).unwrap_or(text.into());
-    if let MessageKind::Common(msg) = msg.kind {
-        if let Some(reply) = msg.reply_to_message {
-            if let MessageKind::Common(reply) = reply.kind {
-                if let Some(content) = message_to_content(reply) {
-                    if let Some(UserId(id)) = invoke_author(&content) {
-                        let chat_id = teloxide::types::ChatId(id as i64);
-                        bot.send_message(chat_id, text).parse_mode(ParseMode::MarkdownV2).await?;
-                    }
-                };
-            }
+    let text = impls::make_message_link(text, &msg.url, msg.thread).unwrap_or(text.into());
+    if msg.replied_author == TELEGRAM_USER_ID {
+        if let Some(UserId(id)) = invoke_author(&msg.replied_content) {
+            let chat_id = teloxide::types::ChatId(id as i64);
+            bot.send_message(chat_id, text).parse_mode(ParseMode::MarkdownV2).await?;
         } 
     }
     Ok(())
 }
-
 
 fn invoke_author(content: &Content) -> Option<UserId> {
     let text = match content {

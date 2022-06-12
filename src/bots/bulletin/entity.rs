@@ -78,7 +78,7 @@ impl Signal {
                 let chat_id = msg.chat.id;
                 let kind = if let MessageKind::Common(msg) = msg.kind {
                     user = msg.from.as_ref().cloned()?;
-                    let content = message_to_content(msg)?;
+                    let content = media_to_content(msg.media_kind)?;
                     if let Some(cmd) = content.command() {
                         cmd.into()
                     } else {
@@ -201,8 +201,8 @@ impl Content {
     }
 }
 
-pub fn message_to_content(msg: MessageCommon) -> Option<Content> {
-    let content = match msg.media_kind {
+pub fn media_to_content(media: MediaKind) -> Option<Content> {
+    let content = match media {
         MediaKind::Photo(mut photo) => {
             photo.photo.sort_unstable_by_key(|size|size.height);
             let best_size = photo.photo.last()?.file_id.clone();
@@ -216,4 +216,42 @@ pub fn message_to_content(msg: MessageCommon) -> Option<Content> {
         _ => return None
     };
     Some(content)
+}
+
+#[derive(Clone)]
+pub struct GroupMessage {
+    pub url: String,
+    pub thread: i32,
+    pub author: UserId,
+    pub content: Content,
+    pub replied_author: UserId,
+    pub replied_content: Content,
+}
+
+impl GroupMessage {
+    pub fn from_update(u: Update) -> Option<Self> {
+        match u.kind {
+            UpdateKind::Message(msg) => Self::from_message(msg),
+            _ => None
+        }
+    }
+    pub fn from_message(msg: Message) -> Option<Self> {
+        let url = msg.url()?.to_string();
+        if let MessageKind::Common(MessageCommon {from, reply_to_message, media_kind, ..}) = msg.kind {
+            let author = from?.id;
+            let content = media_to_content(media_kind)?;
+            let reply_to_message = reply_to_message?;
+            let thread = reply_to_message.id;
+            if let MessageKind::Common(MessageCommon{from, media_kind, ..}) = reply_to_message.kind {
+                let replied_author = from?.id;
+                let replied_content = media_to_content(media_kind)?;
+                Some(Self{url, thread, author, content, replied_author, replied_content})
+            } else {
+                log::error!("cannot invoke replied message: {:?}", reply_to_message.kind);
+                None
+            }
+        } else {
+            None
+        }
+    } 
 }
