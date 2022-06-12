@@ -71,8 +71,8 @@ async fn on_user_action(
             let data = ron::to_string(&CallbackResponse::Remove(msgs))?;
             bot.send_message(chat_id, conf.template(Tpl::Published)).parse_mode(ParseMode::MarkdownV2)
             .reply_markup(InlineKeyboardMarkup::default()
-                .append_row(vec![InlineKeyboardButton::callback(conf.template(Tpl::RemoveAd).into(), data)])
-                .append_row(vec![InlineKeyboardButton::url("На чай разработчику".into(), "https://pay.mysbertips.ru/93867309".try_into().unwrap())])
+                .append_row(vec![InlineKeyboardButton::callback(conf.template(Tpl::RemoveAd), data)])
+                .append_row(vec![InlineKeyboardButton::url("На чай разработчику", "https://pay.mysbertips.ru/93867309".try_into().unwrap())])
             ).await?;
             dialogue.exit().await?;
         },

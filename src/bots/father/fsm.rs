@@ -123,7 +123,7 @@ async fn cmd_on_ready(cmd: Command, bot: WBot, dialogue: MyDialogue, conf: Arc<B
                 bulletin::start(conf);
                 bot.send_message(dialogue.chat_id(), format!("Бот @{} запущен", me.username())).reply_markup(
                     teloxide::types::InlineKeyboardMarkup::default()
-                    .append_row(vec![InlineKeyboardButton::url("На чай разработчику".into(), "https://pay.mysbertips.ru/93867309".try_into().unwrap())])
+                    .append_row(vec![InlineKeyboardButton::url("На чай разработчику", "https://pay.mysbertips.ru/93867309".try_into().unwrap())])
                 ).await?;
                 dialogue.exit().await?;
             },
