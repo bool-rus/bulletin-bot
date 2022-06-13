@@ -5,7 +5,7 @@ use super::res::*;
 use serde::{Serialize, Deserialize};
 
 use teloxide::dispatching::dialogue::GetChatId;
-use teloxide::types::{UserId, Update, ChatId, UpdateKind, MessageKind, MediaKind, User, MediaText, MessageCommon};
+use teloxide::types::{UserId, Update, ChatId, UpdateKind, MessageKind, MediaKind, MediaText, MessageCommon};
 
 type MessageId = i32;
 
@@ -66,18 +66,15 @@ pub enum SignalKind {
 #[derive(Clone)]
 pub struct Signal {
     chat_id: ChatId,
-    user: User,
     kind: SignalKind,
 }
 
 impl Signal {
     pub fn from_update(u: Update) -> Option<Self> {
-        let user;
         match u.kind {
             UpdateKind::Message(msg) | UpdateKind::EditedMessage(msg) => {
                 let chat_id = msg.chat.id;
                 let kind = if let MessageKind::Common(msg) = msg.kind {
-                    user = msg.from.as_ref().cloned()?;
                     let content = media_to_content(msg.media_kind)?;
                     if let Some(cmd) = content.command() {
                         cmd.into()
@@ -87,14 +84,13 @@ impl Signal {
                 } else {
                     return None
                 };
-                Some(Signal{chat_id, user, kind})
+                Some(Signal{chat_id, kind})
             },
             UpdateKind::CallbackQuery(q) => {
                 let chat_id = q.chat_id()?;
-                let user = q.from;
                 let data = q.data?;
                 match ron::from_str::<CallbackResponse>(data.as_str()) {
-                    Ok(response) => Some(Signal{chat_id, user, kind: response.into()}),
+                    Ok(response) => Some(Signal{chat_id, kind: response.into()}),
                     Err(e) => {
                         log::error!("cannot parse callback data: {:?}", e);
                         None
@@ -125,9 +121,6 @@ impl Signal {
             SignalKind::Content(c) => Some(c),
             _ => None,
         }
-    }
-    pub fn user(&self) -> &User {
-        &self.user
     }
 }
 
