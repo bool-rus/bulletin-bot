@@ -1,6 +1,5 @@
-
-use teloxide::payloads::SendMessageSetters;
-use teloxide::types::{ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId};
+use teloxide::payloads::{SendMessageSetters, RestrictChatMemberSetters};
+use teloxide::types::{ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId, ChatPermissions};
 
 
 use crate::bots::TELEGRAM_USER_ID;
@@ -48,7 +47,11 @@ pub fn make_dialogue_handler() -> FSMHandler {
     .endpoint(on_wrong_message);
     dptree::entry()
     .branch(dptree::filter(filter_private).chain(private_handler))
-    .branch(dptree::filter_map(GroupMessage::from_update).endpoint(on_group_message))
+    .branch(
+        dptree::filter_map(GroupMessage::from_update).branch(
+            dptree::filter(filter_admin).endpoint(on_admin_group_message)
+        ).endpoint(on_group_message)
+    )
 }
 
 
@@ -71,8 +74,12 @@ async fn on_group_message(msg: GroupMessage, bot: WBot, conf: Conf) -> FSMResult
     Ok(())
 }
 
-async fn on_admin_message() {
-
+async fn on_admin_group_message(msg: GroupMessage, bot: WBot, conf: Conf) -> FSMResult {
+    if msg.content.text().map(|s|s.to_lowercase()) == Some(conf.template(Template::MuteCommand).to_lowercase()) {
+        let until = chrono::Utc::now() + chrono::Duration::weeks(2);
+        bot.restrict_chat_member(msg.chat_id, msg.replied_author, ChatPermissions::empty()).until_date(until).await?;
+    }
+    Ok(())
 }
 
 fn invoke_author(content: &Content) -> Option<UserId> {

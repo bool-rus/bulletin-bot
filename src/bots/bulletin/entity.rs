@@ -199,6 +199,12 @@ impl Content {
             _ => None
         }
     }
+    pub fn text(&self) -> Option<&str> {
+        match self {
+            Self::Text(text) => Some(text.text.as_str()),
+            _ => None,
+        }
+    }
 }
 
 pub fn media_to_content(media: MediaKind) -> Option<Content> {
@@ -220,6 +226,7 @@ pub fn media_to_content(media: MediaKind) -> Option<Content> {
 
 #[derive(Clone)]
 pub struct GroupMessage {
+    pub chat_id: ChatId,
     pub url: String,
     pub thread: i32,
     pub author: UserId,
@@ -237,6 +244,7 @@ impl GroupMessage {
     }
     pub fn from_message(msg: Message) -> Option<Self> {
         let url = msg.url()?.to_string();
+        let chat_id = msg.chat.id;
         if let MessageKind::Common(MessageCommon {from, reply_to_message, media_kind, ..}) = msg.kind {
             let author = from?.id;
             let content = media_to_content(media_kind)?;
@@ -245,7 +253,7 @@ impl GroupMessage {
             if let MessageKind::Common(MessageCommon{from, media_kind, ..}) = reply_to_message.kind {
                 let replied_author = from?.id;
                 let replied_content = media_to_content(media_kind)?;
-                Some(Self{url, thread, author, content, replied_author, replied_content})
+                Some(Self{chat_id, url, thread, author, content, replied_author, replied_content})
             } else {
                 log::error!("cannot invoke replied message: {:?}", reply_to_message.kind);
                 None
