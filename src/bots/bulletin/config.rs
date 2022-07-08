@@ -111,7 +111,7 @@ impl Template {
         r[AdRemoved as usize]       = "Публикация удалена".into();
         r[CannotRemoveAd as usize]  = "Не удалось удалить публикацию. Возможно, прошло более 48 часов".into();
         r[NewComment as usize]      = "Добавлен новый комментарий".into();
-        r[MuteCommand as usize]     = "хватит".into();
+        r[MuteCommand as usize]     = "!mute".into();
         r
     }
 }
