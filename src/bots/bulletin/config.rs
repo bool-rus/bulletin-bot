@@ -91,6 +91,10 @@ pub enum Template {
     CannotRemoveAd,
     NewComment,
     MuteCommand,
+    RequestTarget,
+    ToBuy,
+    ToSell,
+    JustAQuestion,
 }
 
 impl Template {
@@ -112,6 +116,10 @@ impl Template {
         r[CannotRemoveAd as usize]  = "Не удалось удалить публикацию. Возможно, прошло более 48 часов".into();
         r[NewComment as usize]      = "Добавлен новый комментарий".into();
         r[MuteCommand as usize]     = "!mute".into();
+        r[RequestTarget as usize]   = "Цель объявления?".into();
+        r[ToBuy as usize]           = "Куплю".into();
+        r[ToSell as usize]          = "Продам".into();
+        r[JustAQuestion as usize]   = "Мне просто спросить".into();
         r
     }
 }

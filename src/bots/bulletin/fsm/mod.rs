@@ -24,7 +24,8 @@ pub type FSMHandler = Handler<'static, DependencyMap, FSMResult, teloxide::dispa
 #[derive(Clone)]
 pub enum State {
     Ready,
-    PriceWaitng,
+    ActionWaiting,
+    PriceWaitng(Target),
     Filling(Ad),
     Preview(Ad),
     WaitForward,

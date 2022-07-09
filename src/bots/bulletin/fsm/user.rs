@@ -3,7 +3,7 @@ use config::Template as Tpl;
 pub fn process_user(handler: FSMHandler) -> FSMHandler {
     handler.branch(
         dptree::filter_map(Signal::filter_content)
-        .branch(teloxide::handler![State::PriceWaitng].endpoint(on_price_waiting))
+        .branch(teloxide::handler![State::PriceWaitng(target)].endpoint(on_price_waiting))
         .branch(teloxide::handler![State::Filling(ad)].endpoint(on_filling))
     ).branch(
         dptree::filter_map(Signal::filter_user_action)
@@ -14,11 +14,12 @@ pub fn process_user(handler: FSMHandler) -> FSMHandler {
 async fn on_price_waiting(
     bot: WBot,
     dialogue: MyDialogue,
+    target: Target,
     content: Content,
     conf: Conf,
 ) -> FSMResult {
     let msg = if let Some(price) = content.price() {
-        dialogue.update(State::Filling(Ad::new(price))).await?;
+        dialogue.update(State::Filling(Ad::new(target, price))).await?;
         conf.template(Tpl::FillRequest)
     } else {
         conf.template(Tpl::NotAPrice)
@@ -61,8 +62,16 @@ async fn on_user_action(
             ).await?;
         },
         UserAction::Create => {
-            dialogue.update(State::PriceWaitng).await?;
-            bot.send_message(chat_id, conf.template(Tpl::RequestPrice)).await?;
+            dialogue.update(State::ActionWaiting).await?;
+            let callback = InlineKeyboardButton::callback;
+            bot.send_message(chat_id, conf.template(Tpl::RequestTarget))
+            .reply_markup(InlineKeyboardMarkup::default()
+                .append_row(vec![
+                    callback(conf.template(Tpl::ToBuy), ron::to_string(&CallbackResponse::Target(Target::Buy)).unwrap()),
+                    callback(conf.template(Tpl::ToSell), ron::to_string(&CallbackResponse::Target(Target::Sell)).unwrap()),
+                ])
+                .append_row(vec![callback(conf.template(Tpl::JustAQuestion), ron::to_string(&CallbackResponse::Target(Target::JustAQuestion)).unwrap() )])
+            ).await?;
         },
         UserAction::Publish => on_publish(bot, conf, dialogue).await?,
         UserAction::Yes => if let State::Preview(ad) = dialogue.get_or_default().await? {
@@ -91,6 +100,19 @@ async fn on_user_action(
             if let teloxide::types::UpdateKind::CallbackQuery(ref q) = upd.kind {
                 bot.answer_callback_query(q.id.clone()).text(text).await?;
             };
+        },
+        UserAction::Target(target) => if let State::ActionWaiting = dialogue.get_or_default().await? {
+            let text = match target {
+                Target::JustAQuestion => {
+                    dialogue.update(State::Filling(Ad::new(target, 0))).await?;
+                    conf.template(Tpl::FillRequest)
+                }
+                target => {
+                    dialogue.update(State::PriceWaitng(target)).await?;
+                    conf.template(Tpl::RequestPrice)
+                }
+            };
+            bot.send_message(chat_id, text).await?;
         },
     }
     Ok(())
@@ -123,7 +145,7 @@ async fn on_publish(
         State::Preview(_) => {
             bot.send_message(chat_id, conf.template(Tpl::CheckPreview)).await?;
         },
-        State::PriceWaitng => {
+        State::PriceWaitng(_) => {
             bot.send_message(chat_id, conf.template(Tpl::RequestPrice)).await?;
         },
         _ => {

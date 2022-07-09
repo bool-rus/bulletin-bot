@@ -15,9 +15,17 @@ pub enum CallbackResponse {
     Yes,
     #[serde(rename="n")]
     No,
+    Target(Target),
     User(UserId),
     Remove(Vec<MessageId>),
     AdminToRemove(UserId),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub enum Target {
+    Buy,
+    Sell,
+    JustAQuestion,
 }
 
 #[derive(Clone, Debug)]
@@ -39,6 +47,7 @@ enum Command {
 #[derive(Clone, Debug)]
 pub enum UserAction {
     Help,
+    Target(Target),
     Create,
     Publish,
     Yes,
@@ -171,6 +180,7 @@ impl Into<SignalKind> for CallbackResponse {
             CallbackResponse::User(u) => SK::AdminAction(AdminAction::UserToUnban(u)),
             CallbackResponse::AdminToRemove(u) => SK::AdminAction(AdminAction::AdminToRemove(u)),
             CallbackResponse::Remove(msgs) => SK::UserAction(UserAction::Remove(msgs)),
+            CallbackResponse::Target(target) => SK::UserAction(UserAction::Target(target)),
         }
     }
 }

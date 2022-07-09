@@ -1,15 +1,17 @@
-use super::entity::Content;
+use super::entity::{Content, Target};
 use super::Price;
 
 #[derive(Debug, Clone)]
 pub struct Ad {
+    pub target: Target,
     pub price: Price,
     pub text: String,
     pub photos: Vec<String>,
 }
 impl Ad {
-    pub fn new(price: Price) -> Self {
+    pub fn new(target: Target, price: Price) -> Self {
         Self {
+            target,
             price,
             text: String::new(),
             photos: Vec::new(),

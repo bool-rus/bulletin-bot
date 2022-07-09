@@ -8,10 +8,15 @@ fn make_ad_text(user: &User, ad: &Ad) -> String {
     let user_link = format!("https://tg.com?{}", user_id);
     let user_link = link(&user_link, " ");
     let text = escape(&ad.text);
-    let price = bold(&format!("{} ₽", ad.price));
+    let price = bold(&format!("{} ₽", ad.price)); 
+    let price = match ad.target {
+        Target::Buy => format!("\\#куплю за {}", price),
+        Target::Sell => format!("\\#продам за {}", price),
+        Target::JustAQuestion => "\\#простоспросить".into(),
+    };
     let full_name = escape(&user.full_name());
     let sign = user_mention(user_id, &full_name);
-    format!("{}\n\n{}\n{}\n",user_link + &text, price, sign)
+    format!("{}\n{}\n\n{}\n",user_link + &text, price, sign)
 }
 
 pub fn make_message_link(text: &str, url: &str, thread: i32) -> Option<String> {
