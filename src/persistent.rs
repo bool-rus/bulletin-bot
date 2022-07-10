@@ -91,9 +91,9 @@ impl Storage {
         let mut res = Vec::with_capacity(recs.len());
         for r in recs {
             let id = r.id;
-            let admins = sqlx::query!("select user from bot_admins where bot_id=?1", id)
+            let admins = sqlx::query!("select user, username from bot_admins where bot_id=?1", id)
             .fetch_all(&mut conn).await.unwrap()
-            .iter().map(|r|(UserId(r.user as u64), "owner".into())).collect();
+            .iter().map(|r|(UserId(r.user as u64), r.username.clone())).collect();
             let conf = Config::new(r.token, ChatId(r.channel), admins);
             res.push((id,conf));
         }
