@@ -95,6 +95,7 @@ pub enum Template {
     ToBuy,
     ToSell,
     JustAQuestion,
+    AdminsOnly,
 }
 
 impl Template {
@@ -120,6 +121,7 @@ impl Template {
         r[ToBuy as usize]           = "Куплю".into();
         r[ToSell as usize]          = "Продам".into();
         r[JustAQuestion as usize]   = "Мне просто спросить".into();
+        r[AdminsOnly as usize]      = "Хорошая попытка, но так могут только админы".into();
         r
     }
 }

@@ -30,7 +30,7 @@ pub fn make_message_link(text: &str, url: &str, thread: i32) -> Option<String> {
     Some(words.join(" "))
 }
 
-pub async fn send_ad(bot: WBot, conf: fsm::Conf, target_chat_id: ChatId, user_id: UserId, ad: &Ad) -> Result<Vec<Message>, Box<dyn std::error::Error + Send + Sync>> {
+pub async fn send_ad(bot: WBot, conf: Conf, target_chat_id: ChatId, user_id: UserId, ad: &Ad) -> Result<Vec<Message>, Box<dyn std::error::Error + Send + Sync>> {
 
     let chat_member = bot.get_chat_member(conf.channel, user_id).await?;
     if chat_member.is_left() || chat_member.is_banned() {

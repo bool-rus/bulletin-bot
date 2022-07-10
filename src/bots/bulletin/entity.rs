@@ -227,40 +227,78 @@ pub fn media_to_content(media: MediaKind) -> Option<Content> {
     Some(content)
 }
 
+pub fn invoke_author(content: &Content) -> Option<UserId> {
+    let text = match content {
+        Content::Text(text) => text,
+        Content::TextAndPhoto(text, _) => text,
+        _ => None?,
+    };
+    match text.entities.first()?.kind {
+        teloxide::types::MessageEntityKind::TextLink {ref url} => {
+            if let Some(user_id) = url.query().map(|q|q.parse().ok()).flatten() {
+                return Some(UserId(user_id));
+            }
+        }
+        _ => {}
+    }
+    //легаси, через время удалить
+    log::warn!("cannot invoke author: {:?}", text);
+    match text.entities.last()?.kind {
+        teloxide::types::MessageEntityKind::TextMention{ref user} => Some(user.id),
+        _ => None
+    }
+}
+
 #[derive(Clone)]
 pub struct GroupMessage {
+    pub id: i32,
     pub chat_id: ChatId,
     pub url: String,
-    pub thread: i32,
     pub author: UserId,
-    pub content: Content,
-    pub replied_author: UserId,
-    pub replied_content: Content,
+    pub kind: GroupMessageKind,
+}
+#[derive(Clone)]
+pub enum GroupMessageKind {
+    Comment {thread: i32, replied_author: UserId},
+    Mute(UserId),
+    Dumb,
 }
 
 impl GroupMessage {
-    pub fn from_update(u: Update) -> Option<Self> {
+    pub fn from_update(u: Update, conf: Conf) -> Option<Self> {
         match u.kind {
-            UpdateKind::Message(msg) => Self::from_message(msg),
+            UpdateKind::Message(msg) => Self::from_message(msg, conf),
             _ => None
         }
     }
-    pub fn from_message(msg: Message) -> Option<Self> {
+    pub fn from_message(msg: Message, conf: Conf) -> Option<Self> {
         let url = msg.url()?.to_string();
         let chat_id = msg.chat.id;
+        let id = msg.id;
         if let MessageKind::Common(MessageCommon {from, reply_to_message, media_kind, ..}) = msg.kind {
             let author = from?.id;
-            let content = media_to_content(media_kind)?;
-            let reply_to_message = reply_to_message?;
-            let thread = reply_to_message.id;
-            if let MessageKind::Common(MessageCommon{from, media_kind, ..}) = reply_to_message.kind {
-                let replied_author = from?.id;
-                let replied_content = media_to_content(media_kind)?;
-                Some(Self{chat_id, url, thread, author, content, replied_author, replied_content})
+            let kind = if let Some(reply_to_message) = reply_to_message {
+                let thread = reply_to_message.id;
+                let content = media_to_content(media_kind)?;
+                if let MessageKind::Common(MessageCommon{from, media_kind, ..}) = reply_to_message.kind {
+                    let replied_author = from?.id;
+                    let replied_content = media_to_content(media_kind)?;
+                    if replied_author == TELEGRAM_USER_ID { 
+                        let replied_author = invoke_author(&replied_content)?;
+                        GroupMessageKind::Comment { thread, replied_author}
+                    } else if content.text()?.to_lowercase() == conf.template(config::Template::MuteCommand).to_lowercase() {
+                        GroupMessageKind::Mute(replied_author)
+                    } else {
+                        None?
+                    }
+                } else {
+                    log::error!("cannot invoke replied message: {:?}", reply_to_message.kind);
+                    None?
+                }
             } else {
-                log::error!("cannot invoke replied message: {:?}", reply_to_message.kind);
-                None
-            }
+                GroupMessageKind::Dumb
+            };
+            Some(Self {id, chat_id, url, author, kind})
         } else {
             None
         }
