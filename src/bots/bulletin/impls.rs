@@ -19,12 +19,16 @@ fn make_ad_text(user: &User, ad: &Ad) -> String {
     format!("{}\n{}\n\n{}\n",user_link + &text, price, sign)
 }
 
-pub fn make_message_link(text: &str, url: &str, thread: i32) -> Option<String> {
+pub fn make_message_link(text: &str, url: &str, thread: Option<i32>) -> Option<String> {
     let text = escape(text);
     let mut words: Vec<_> = text.split(" ").collect();
-    let mut chars = url.chars();
-    chars.next_back();
-    let url = format!("{}?thread={}", chars.as_str(), thread);
+    let url = if let Some(thread) = thread {
+        let mut chars = url.chars();
+        chars.next_back();
+        format!("{}?thread={}", chars.as_str(), thread)
+    } else {
+        url.to_owned()
+    };
     let msg_link = link(&url, words.iter().last()?);
     *words.iter_mut().last().unwrap() = msg_link.as_str();
     Some(words.join(" "))

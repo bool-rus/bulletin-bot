@@ -75,10 +75,14 @@ async fn on_user_action(
         },
         UserAction::Publish => on_publish(bot, conf, dialogue).await?,
         UserAction::Yes => if let State::Preview(ad) = dialogue.get_or_default().await? {
-            let msgs: Vec<_> = send_ad(bot.clone(), conf.clone(), conf.channel, user_id, &ad).await?.into_iter().map(|m|m.id).collect();
-            bot.forward_message(chat_id, conf.channel, msgs[0]).await?;
-            let data = ron::to_string(&CallbackResponse::Remove(msgs))?;
-            bot.send_message(chat_id, conf.template(Tpl::Published)).parse_mode(ParseMode::MarkdownV2)
+            let msgs: Vec<_> = send_ad(bot.clone(), conf.clone(), conf.channel, user_id, &ad).await?;
+            let ids: Vec<_> = msgs.iter().map(|m|m.id).collect();
+            let data = ron::to_string(&CallbackResponse::Remove(ids))?;
+            let msg = msgs.first().ok_or("Published msgs is empty".to_owned())?;
+            let url = msg.url().map(|u|u.to_string()).unwrap_or_default();
+            let text = impls::make_message_link(conf.template(Tpl::Published), &url, None)
+            .unwrap_or(conf.template(Tpl::Published).into());
+            bot.send_message(chat_id, text).parse_mode(ParseMode::MarkdownV2)
             .reply_markup(InlineKeyboardMarkup::default()
                 .append_row(vec![InlineKeyboardButton::callback(conf.template(Tpl::RemoveAd), data)])
                 .append_row(vec![InlineKeyboardButton::url("На чай разработчику", "https://pay.mysbertips.ru/93867309".try_into().unwrap())])

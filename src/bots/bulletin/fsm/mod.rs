@@ -77,7 +77,7 @@ async fn on_group_message(msg: GroupMessage, bot: WBot, conf: Conf) -> FSMResult
         GroupMessageKind::Comment { thread, replied_author } => if replied_author != msg.author { 
             let chat_id = teloxide::types::ChatId(replied_author.0 as i64);
             let text = conf.template(Template::NewComment);
-            let text = impls::make_message_link(text, &msg.url, thread).unwrap_or(text.into());
+            let text = impls::make_message_link(text, &msg.url, Some(thread)).unwrap_or(text.into());
             bot.send_message(chat_id, text).parse_mode(ParseMode::MarkdownV2).await?;
         },
         GroupMessageKind::Mute(user_id) => {
