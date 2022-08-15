@@ -2,7 +2,7 @@ use teloxide::payloads::{SendMessageSetters, RestrictChatMemberSetters};
 use teloxide::types::{ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId, ChatPermissions};
 
 
-use crate::bots::TELEGRAM_USER_ID;
+use crate::bots::{TELEGRAM_USER_ID, CHANNEL_USER_ID, ANONYMOUS_USER_ID};
 
 use self::admin::process_admin;
 use self::user::process_user;
@@ -58,11 +58,13 @@ fn filter_admin(upd: Update, conf: Conf) -> bool {
 }
 
 async fn on_group_message_with_delete_aliens(msg: GroupMessage, bot: WBot, conf: Conf) -> FSMResult {
-    let is_alien = if msg.author == TELEGRAM_USER_ID {
-        false
-    } else {
-        let chat_member = bot.get_chat_member(conf.channel, msg.author).await?;
-        chat_member.is_left() || chat_member.is_banned()
+    let is_alien = match msg.author {
+        TELEGRAM_USER_ID | ANONYMOUS_USER_ID  => false,
+        CHANNEL_USER_ID => msg.sender_chat_id != Some(conf.channel),
+        _ => {
+            let chat_member = bot.get_chat_member(conf.channel, msg.author).await?;
+            chat_member.is_left() || chat_member.is_banned()
+        }
     };
     if is_alien {
         bot.delete_message(msg.chat_id, msg.id).await?;

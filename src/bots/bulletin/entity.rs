@@ -1,4 +1,5 @@
 use std::str::FromStr;
+
 use super::*;
 use super::res::*;
 
@@ -249,15 +250,16 @@ pub fn invoke_author(content: &Content) -> Option<UserId> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GroupMessage {
     pub id: i32,
     pub chat_id: ChatId,
+    pub sender_chat_id: Option<ChatId>,
     pub url: String,
     pub author: UserId,
     pub kind: GroupMessageKind,
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum GroupMessageKind {
     Comment {thread: i32, replied_author: UserId},
     Mute(UserId),
@@ -275,7 +277,8 @@ impl GroupMessage {
         let url = msg.url()?.to_string();
         let chat_id = msg.chat.id;
         let id = msg.id;
-        if let MessageKind::Common(MessageCommon {from, reply_to_message, media_kind, ..}) = msg.kind {
+        if let MessageKind::Common(MessageCommon {from, reply_to_message, media_kind, sender_chat, ..}) = msg.kind {
+            let sender_chat_id = sender_chat.map(|chat|chat.id);
             let author = from?.id;
             let kind = if let Some(reply_to_message) = reply_to_message {
                 let thread = reply_to_message.id;
@@ -298,7 +301,7 @@ impl GroupMessage {
             } else {
                 GroupMessageKind::Dumb
             };
-            Some(Self {id, chat_id, url, author, kind})
+            Some(Self {id, chat_id, sender_chat_id, url, author, kind})
         } else {
             None
         }

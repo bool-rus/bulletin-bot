@@ -5,6 +5,8 @@ pub mod bulletin;
 pub mod father;
 
 pub const TELEGRAM_USER_ID: UserId = UserId(777000);
+pub const CHANNEL_USER_ID: UserId = UserId(136817688);
+pub const ANONYMOUS_USER_ID: UserId = UserId(1087968824);
 
 type WrappedBot = AutoSend<Bot>;
 
