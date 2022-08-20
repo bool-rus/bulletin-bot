@@ -1,5 +1,4 @@
 use teloxide::prelude::*;
-use super::TELEGRAM_USER_ID;
 use super::WrappedBot as WBot;
 use entity::*;
 use ad::Ad;

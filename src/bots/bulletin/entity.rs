@@ -286,7 +286,7 @@ impl GroupMessage {
                 if let MessageKind::Common(MessageCommon{from, media_kind, ..}) = reply_to_message.kind {
                     let replied_author = from?.id;
                     let replied_content = media_to_content(media_kind)?;
-                    if replied_author == TELEGRAM_USER_ID { 
+                    if replied_author.is_telegram() { 
                         let replied_author = invoke_author(&replied_content)?;
                         GroupMessageKind::Comment { thread, replied_author}
                     } else if content.text()?.to_lowercase() == conf.template(config::Template::MuteCommand).to_lowercase() {
