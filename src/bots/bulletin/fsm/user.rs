@@ -76,6 +76,7 @@ async fn on_user_action(
         UserAction::Publish => on_publish(bot, conf, dialogue).await?,
         UserAction::Yes => if let State::Preview(ad) = dialogue.get_or_default().await? {
             let msgs: Vec<_> = send_ad(bot.clone(), conf.clone(), conf.channel, user_id, &ad).await?;
+            dialogue.exit().await?;
             let ids: Vec<_> = msgs.iter().map(|m|m.id).collect();
             let data = ron::to_string(&CallbackResponse::Remove(ids))?;
             let msg = msgs.first().ok_or("Published msgs is empty".to_owned())?;
@@ -87,7 +88,6 @@ async fn on_user_action(
                 .append_row(vec![InlineKeyboardButton::callback(conf.template(Tpl::RemoveAd), data)])
                 .append_row(vec![InlineKeyboardButton::url("На чай разработчику", "https://pay.mysbertips.ru/93867309".try_into().unwrap())])
             ).await?;
-            dialogue.exit().await?;
         },
         UserAction::No => if let State::Preview(ad) = dialogue.get_or_default().await? {
             dialogue.update(State::Filling(ad)).await?;
