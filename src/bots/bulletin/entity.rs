@@ -10,7 +10,7 @@ use teloxide::types::{UserId, Update, ChatId, UpdateKind, MessageKind, MediaKind
 
 type MessageId = i32;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum CallbackResponse {
     #[serde(rename="y")]
     Yes,
@@ -22,7 +22,27 @@ pub enum CallbackResponse {
     AdminToRemove(UserId),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+impl TryFrom<&str> for CallbackResponse {
+    type Error = Box<dyn std::error::Error + Send + Sync>;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let bytes = base91::slice_decode(value.as_bytes());
+        match postcard::from_bytes::<CallbackResponse>(bytes.as_slice()) {
+            Ok(cb) => Ok(cb),
+            Err(_) => Ok(ron::from_str(value)?)
+        }
+    }
+}
+
+impl CallbackResponse {
+    pub fn to_string(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let buf = postcard::to_vec::<_, 64>(&self)?;
+        let encoded = base91::slice_encode(buf.as_slice());
+        Ok(String::from_utf8(encoded)?)
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum Target {
     Buy,
     Sell,
@@ -99,10 +119,10 @@ impl Signal {
             UpdateKind::CallbackQuery(q) => {
                 let chat_id = q.chat_id()?;
                 let data = q.data?;
-                match ron::from_str::<CallbackResponse>(data.as_str()) {
+                match CallbackResponse::try_from(data.as_str()) {
                     Ok(response) => Some(Signal{chat_id, kind: response.into()}),
                     Err(e) => {
-                        log::error!("cannot parse callback data: {:?}", e);
+                        log::error!("cannot parse callback data: {} error: {:?}", data, e);
                         None
                     },
                 }

@@ -67,10 +67,10 @@ async fn on_user_action(
             bot.send_message(chat_id, conf.template(Tpl::RequestTarget))
             .reply_markup(InlineKeyboardMarkup::default()
                 .append_row(vec![
-                    callback(conf.template(Tpl::ToBuy), ron::to_string(&CallbackResponse::Target(Target::Buy)).unwrap()),
-                    callback(conf.template(Tpl::ToSell), ron::to_string(&CallbackResponse::Target(Target::Sell)).unwrap()),
+                    callback(conf.template(Tpl::ToBuy), CallbackResponse::Target(Target::Buy).to_string().unwrap()),
+                    callback(conf.template(Tpl::ToSell), CallbackResponse::Target(Target::Sell).to_string().unwrap()),
                 ])
-                .append_row(vec![callback(conf.template(Tpl::JustAQuestion), ron::to_string(&CallbackResponse::Target(Target::JustAQuestion)).unwrap() )])
+                .append_row(vec![callback(conf.template(Tpl::JustAQuestion), CallbackResponse::Target(Target::JustAQuestion).to_string().unwrap() )])
             ).await?;
         },
         UserAction::Publish => on_publish(bot, conf, dialogue).await?,
@@ -78,7 +78,7 @@ async fn on_user_action(
             let msgs: Vec<_> = send_ad(bot.clone(), conf.clone(), conf.channel, user_id, &ad).await?;
             dialogue.exit().await?;
             let ids: Vec<_> = msgs.iter().map(|m|m.id).collect();
-            let data = ron::to_string(&CallbackResponse::Remove(ids))?;
+            let data = CallbackResponse::Remove(ids).to_string()?;
             let msg = msgs.first().ok_or("Published msgs is empty".to_owned())?;
             let url = msg.url().map(|u|u.to_string()).unwrap_or_default();
             let text = impls::make_message_link(conf.template(Tpl::Published), &url, None)
@@ -141,8 +141,8 @@ async fn on_publish(
             send_ad(bot.clone(), conf.clone(), chat_id, user_id, &ad).await?;
             bot.send_message(chat_id, conf.template(Tpl::IsAllCorrect))
             .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
-                InlineKeyboardButton::callback("Да".to_owned(), ron::to_string(&CallbackResponse::Yes)?),
-                InlineKeyboardButton::callback("Нет".to_owned(), ron::to_string(&CallbackResponse::No)?),
+                InlineKeyboardButton::callback("Да".to_owned(), CallbackResponse::Yes.to_string()?),
+                InlineKeyboardButton::callback("Нет".to_owned(), CallbackResponse::No.to_string()?),
             ])).await?;
             dialogue.update(State::Preview(ad)).await?;
         },
