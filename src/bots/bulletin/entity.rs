@@ -27,10 +27,7 @@ impl TryFrom<&str> for CallbackResponse {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let bytes = base91::slice_decode(value.as_bytes());
-        match postcard::from_bytes::<CallbackResponse>(bytes.as_slice()) {
-            Ok(cb) => Ok(cb),
-            Err(_) => Ok(ron::from_str(value)?)
-        }
+        postcard::from_bytes::<CallbackResponse>(bytes.as_slice()).map_err(|e|e.into())
     }
 }
 
