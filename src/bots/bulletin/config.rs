@@ -10,7 +10,7 @@ pub struct Config {
     pub token: String, 
     pub admins: Mutex<HashMap<UserId, String>>,
     pub channel: ChatId,
-    sender: crossbeam::channel::Sender<DBAction>,
+    pub sender: crossbeam::channel::Sender<DBAction>,
     pub receiver: crossbeam::channel::Receiver<DBAction>,
     templates: [String; Template::COUNT],
     banned: Mutex<HashMap<UserId, String>>,

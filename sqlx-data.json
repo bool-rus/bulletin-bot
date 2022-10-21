@@ -44,6 +44,16 @@
     },
     "query": "insert into bots (token, channel) values (?1, ?2)"
   },
+  "92c50edddb3e981caa071f1ef5a9adfb937213910c51e370d535e8547c278463": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "insert or replace into bot_info (bot_id, username, channel_name) values (?1, ?2, ?3)"
+  },
   "b40ff7d3004ad99b4d199ec575ecda3f93e735bd667d5f7141fad802385c376e": {
     "describe": {
       "columns": [

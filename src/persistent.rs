@@ -13,6 +13,7 @@ pub enum DBAction {
     CreateConfig(Arc<Config>),
     AddAdmin(i64, String),
     RemoveAdmin(i64),
+    SetInfo { name: String, channel_name: String },
 }
 
 pub async fn worker() -> (Sender<DBAction>, Vec<Config>) {
@@ -48,6 +49,7 @@ pub async fn worker() -> (Sender<DBAction>, Vec<Config>) {
                             DBAction::CreateConfig(_) => log::error!("Unexpected create config"),
                             DBAction::AddAdmin(admin_id, username) => storage.add_admin(*id, admin_id, username).await,
                             DBAction::RemoveAdmin(admin_id) => storage.remove_admin(*id, admin_id).await,
+                            DBAction::SetInfo { name, channel_name } => storage.set_info(*id, name, channel_name).await,
                         };
                     }
                     Err(TryRecvError::Disconnected) => del_indexes.push(i),
@@ -108,5 +110,11 @@ impl Storage {
         let mut conn = self.0.acquire().await.unwrap();
         sqlx::query!("delete from bot_admins where bot_id = ?1 and user = ?2", bot_id, admin_id)
         .execute(&mut conn).await.unwrap();
+    }
+    async fn set_info(&self, bot_id: i64, name: String, channel_name: String) {
+        let mut conn = self.0.acquire().await.unwrap();
+        sqlx::query!(
+            "insert or replace into bot_info (bot_id, username, channel_name) values (?1, ?2, ?3)", bot_id, name, channel_name
+        ).execute(&mut conn).await.unwrap();
     }
 }
