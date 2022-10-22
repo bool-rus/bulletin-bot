@@ -18,6 +18,12 @@ const SEND_TOKEN: &str = "Для начала создай бота с помо�
 После создания бота он пришлет тебе токен. Вот этот токен надо прислать сюда.";
 const FORWARD: &str = "Отлично! Теперь нужно добавить этого бота в админы канала, чтобы он мог постить туда сообщения.
 А чтобы понимать, что это за канал - пересылай сюда любое сообщение оттуда.";
+const NOTHING_START: &str = "Сначала используй команду /newbot";
+const NEED_FORWARD_FROM_CHANNEL: &str = "Нужно переслать сообщение из канала";
+const NOT_FORWARDED_FROM_CHANNEL: &str = "Это не то. Нужно переслать сообщение из канала"; 
+const CHOOSE_THE_BOT: &str = "Выбери бота:";
+const BOT_IS_READY: &str = "Бот готов. Чтобы запустить бота, используй команду /startbot";
+const INVALID_TOKEN: &str = "Токен не подходит. Попробуй сначала";
 
 #[derive(BotCommands, Clone)]
 #[command(rename = "lowercase", description = "These commands are supported:")]
@@ -74,7 +80,7 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
             bot.send_message(dialogue.chat_id(), SEND_TOKEN).await?;
         },
         Command::StartBot => {
-            bot.send_message(dialogue.chat_id(), "Сначала используй команду /newbot").await?;
+            bot.send_message(dialogue.chat_id(), NOTHING_START).await?;
         },
         Command::MyBots => {
             let bots = db.get_bots(dialogue.chat_id().0).await;
@@ -82,7 +88,7 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
                 vec![InlineKeyboardButton::callback(name, id.to_string())]
             });
             let markup = InlineKeyboardMarkup::new(buttons);
-            bot.send_message(dialogue.chat_id(), "Выбери бота:").reply_markup(markup).await.unwrap();
+            bot.send_message(dialogue.chat_id(), CHOOSE_THE_BOT).reply_markup(markup).await.unwrap();
         },
     }
     Ok(())
@@ -91,7 +97,7 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
 async fn cmd_on_wait_token(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
     match cmd {
         Command::StartBot => {
-            bot.send_message(dialogue.chat_id(), "Нужно переслать сообщение из канала").await?;
+            bot.send_message(dialogue.chat_id(), NEED_FORWARD_FROM_CHANNEL).await?;
         },
         _ => return on_command(cmd, bot, dialogue, db).await,
     }
@@ -115,13 +121,13 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
                     let conf = BulletinConfig::new(token, channel_id, vec![]);
                     conf.add_admin(admin.id, make_username(&admin));
                     dialogue.update(State::Ready(conf.into())).await?;
-                    bot.send_message(dialogue.chat_id(), "Бот готов. Чтобы запустить бота, используй команду /startbot").await?;
+                    bot.send_message(dialogue.chat_id(), BOT_IS_READY).await?;
                     return Ok(())
                 }
             }
         } 
     } 
-    bot.send_message(dialogue.chat_id(), "Это не то. Нужно переслать сообщение из канала").await?;
+    bot.send_message(dialogue.chat_id(), NOT_FORWARDED_FROM_CHANNEL).await?;
     Ok(())
 }
 
@@ -146,7 +152,7 @@ async fn cmd_on_ready(
             },
             Err(e) => {
                 log::error!("cannot create bot: {:?}", e);
-                bot.send_message(dialogue.chat_id(), "Токен не подходит. Попробуй сначала").await?;
+                bot.send_message(dialogue.chat_id(), INVALID_TOKEN).await?;
                 dialogue.exit().await?;
             },
         }
