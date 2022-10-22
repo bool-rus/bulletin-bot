@@ -4,6 +4,8 @@ use crate::persistent::DBAction;
 pub mod bulletin;
 pub mod father;
 
+type DBStorage = std::sync::Arc<crate::persistent::Storage>;
+
 type WrappedBot = AutoSend<Bot>;
 
 fn make_username(user: &teloxide::types::User) -> String {

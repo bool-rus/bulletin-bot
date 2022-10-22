@@ -93,5 +93,29 @@
       }
     },
     "query": "insert into bot_admins values (?1, ?2, ?3)"
+  },
+  "e739f377e50d5f577f143400975ba0e68289e4e74dc3b8fd85b5668d6e5384b2": {
+    "describe": {
+      "columns": [
+        {
+          "name": "bot_id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "username",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select i.bot_id, i.username from bot_info as i join bot_admins as a on i.bot_id=a.bot_id where a.user=?1"
   }
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use teloxide::RequestError;
-use teloxide::types::{MessageKind, ForwardedFrom, BotCommand, Me};
+use teloxide::types::{MessageKind, ForwardedFrom, BotCommand, Me, InlineKeyboardMarkup};
 use teloxide::dispatching::UpdateFilterExt;
 use teloxide::utils::command::BotCommands;
 use teloxide::prelude::DependencyMap;
@@ -28,6 +28,8 @@ enum Command {
     NewBot,
     #[command(description = "запустить бота")]
     StartBot,
+    #[command(description = "мои боты")]
+    MyBots,
 }
 
 pub fn bot_commands() -> Vec<BotCommand> {
@@ -62,7 +64,7 @@ pub fn make_dialogue_handler() -> FSMHandler {
     .endpoint(on_wrong_message)
 }
 
-async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue) -> FSMResult {
+async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
     match cmd {
         Command::Help => {
             bot.send_message(dialogue.chat_id(), HELP).await?;
@@ -74,16 +76,24 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue) -> FSMResult 
         Command::StartBot => {
             bot.send_message(dialogue.chat_id(), "Сначала используй команду /newbot").await?;
         },
+        Command::MyBots => {
+            let bots = db.get_bots(dialogue.chat_id().0).await;
+            let buttons = bots.into_iter().map(|(id, name)|{
+                vec![InlineKeyboardButton::callback(name, id.to_string())]
+            });
+            let markup = InlineKeyboardMarkup::new(buttons);
+            bot.send_message(dialogue.chat_id(), "Выбери бота:").reply_markup(markup).await.unwrap();
+        },
     }
     Ok(())
 }
 
-async fn cmd_on_wait_token(cmd: Command, bot: WBot, dialogue: MyDialogue) -> FSMResult {
+async fn cmd_on_wait_token(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
     match cmd {
         Command::StartBot => {
             bot.send_message(dialogue.chat_id(), "Нужно переслать сообщение из канала").await?;
         },
-        _ => return on_command(cmd, bot, dialogue).await,
+        _ => return on_command(cmd, bot, dialogue, db).await,
     }
     Ok(())
 }
@@ -115,7 +125,14 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
     Ok(())
 }
 
-async fn cmd_on_ready(cmd: Command, bot: WBot, dialogue: MyDialogue, conf: Arc<BulletinConfig>, sender: Arc<Sender<DBAction>>) -> FSMResult {
+async fn cmd_on_ready(
+    cmd: Command, 
+    bot: WBot, 
+    dialogue: MyDialogue, 
+    conf: Arc<BulletinConfig>, 
+    sender: Arc<Sender<DBAction>>, 
+    db: DBStorage
+) -> FSMResult {
     if let Command::StartBot = cmd {
         match check_bot(conf.token.clone()).await {
             Ok(me) => {
@@ -134,7 +151,7 @@ async fn cmd_on_ready(cmd: Command, bot: WBot, dialogue: MyDialogue, conf: Arc<B
             },
         }
     } else {
-        on_command(cmd, bot, dialogue).await?;
+        on_command(cmd, bot, dialogue, db).await?;
     }
     Ok(())
 }

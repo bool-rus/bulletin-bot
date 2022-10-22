@@ -16,7 +16,7 @@ pub enum DBAction {
     SetInfo { name: String, channel_name: String },
 }
 
-pub async fn worker() -> (Sender<DBAction>, Vec<Config>) {
+pub async fn worker() -> (Sender<DBAction>, Vec<Config>, Arc<Storage>) {
     let storage = Storage::new().await;
     let (s, r) = crossbeam::channel::unbounded();
     let configs = storage.all_configs().await;
@@ -24,7 +24,9 @@ pub async fn worker() -> (Sender<DBAction>, Vec<Config>) {
         (conf.receiver.clone(), *id)
     }).collect();
 
+    let cloned_storage = storage.clone();
     tokio::spawn(async move {
+        let storage = cloned_storage;
         loop {
             let mut sleep = true;
             match r.try_recv() {
@@ -62,7 +64,7 @@ pub async fn worker() -> (Sender<DBAction>, Vec<Config>) {
             }
         }
     });
-    (s, configs.into_iter().map(|(_,c)|c).collect())
+    (s, configs.into_iter().map(|(_,c)|c).collect(), storage)
 }
 
 
@@ -72,7 +74,7 @@ async fn make_pool() -> SqlitePool {
     pool
 }
 
-struct Storage(SqlitePool);
+pub struct Storage(SqlitePool);
 
 impl Storage {
     async fn new() -> Arc<Self> {
@@ -114,7 +116,15 @@ impl Storage {
     async fn set_info(&self, bot_id: i64, name: String, channel_name: String) {
         let mut conn = self.0.acquire().await.unwrap();
         sqlx::query!(
-            "insert or replace into bot_info (bot_id, username, channel_name) values (?1, ?2, ?3)", bot_id, name, channel_name
+            "insert or replace into bot_info (bot_id, username, channel_name) values (?1, ?2, ?3)", 
+            bot_id, name, channel_name
         ).execute(&mut conn).await.unwrap();
+    }
+    pub async fn get_bots(&self, admin_id: i64) -> Vec<(i64, String)> {
+        let mut conn = self.0.acquire().await.unwrap();
+        sqlx::query!(
+            "select i.bot_id, i.username from bot_info as i join bot_admins as a on i.bot_id=a.bot_id where a.user=?1",
+            admin_id
+        ).fetch_all(&mut conn).await.unwrap().into_iter().map(|r|(r.bot_id, r.username)).collect()
     }
 }
