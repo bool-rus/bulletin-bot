@@ -1,19 +1,28 @@
+use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+
+use impls::LoggableErrorResult;
+use teloxide::dispatching::ShutdownToken;
+
 mod impls;
 mod bots;
 mod persistent;
+type StartedBots = Arc<Mutex<HashMap<i64, ShutdownToken>>>;
 
 #[tokio::main]
 async fn main() {
     init_logger();
     let (sender, configs, storage) = persistent::worker().await;
-    configs.into_iter().for_each(|conf|bots::bulletin::start(conf.into()));
+    let started_bots = configs.into_iter().fold(HashMap::new(),|mut map, (id, conf)|{
+        map.insert(id, bots::bulletin::start(conf.into()));
+        map
+    });
     bots::father::start(
         std::env::var("TELEGRAM_BOT_TOKEN").expect("need to set env variable TELEGRAM_BOT_TOKEN"), 
         sender,
-        storage
-    );
-    tokio::signal::ctrl_c().await.expect("Failed to listen for ^C");
-    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+        storage,
+        Arc::new(Mutex::new(started_bots))
+    ).await.ok_or_log();
 }
 
 fn init_logger() {

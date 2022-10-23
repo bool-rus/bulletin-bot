@@ -137,13 +137,16 @@ async fn cmd_on_ready(
     dialogue: MyDialogue, 
     conf: Arc<BulletinConfig>, 
     sender: Arc<Sender<DBAction>>, 
-    db: DBStorage
+    db: DBStorage,
+    started_bots: StartedBots,
 ) -> FSMResult {
     if let Command::StartBot = cmd {
         match check_bot(conf.token.clone()).await {
             Ok(me) => {
-                sender.send(DBAction::CreateConfig(conf.clone())).ok_or_log();
-                bulletin::start(conf);
+                let id = db.save_config(conf.clone()).await;
+                sender.send(DBAction::CreateConfig(id, conf.clone())).ok_or_log();
+                let token = bulletin::start(conf);
+                started_bots.lock().unwrap().insert(id, token);
                 bot.send_message(dialogue.chat_id(), format!("Бот @{} запущен", me.username())).reply_markup(
                     teloxide::types::InlineKeyboardMarkup::default()
                     .append_row(vec![InlineKeyboardButton::url("На чай разработчику", "https://pay.mysbertips.ru/93867309".try_into().unwrap())])

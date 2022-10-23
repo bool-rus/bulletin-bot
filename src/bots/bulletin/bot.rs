@@ -2,14 +2,15 @@ use std::sync::Arc;
 use crate::impls::LoggableErrorResult;
 
 use super::*;
-use teloxide::types::BotCommand;
+use teloxide::{types::BotCommand, dispatching::ShutdownToken};
 
-pub fn start(config: Arc<Config>) {
+pub fn start(config: Arc<Config>) -> ShutdownToken {
     let bot = Bot::new(config.token.as_str()).auto_send();
     let storage = MyStorage::new();
     let mut dispatcher = Dispatcher::builder(bot.clone(), fsm::make_dialogue_handler())
         .dependencies(dptree::deps![storage, config.clone()])
         .build();
+    let token = dispatcher.shutdown_token();
     tokio::spawn(async move {
 
         let me = bot.get_me().await.ok_or_log();
@@ -39,4 +40,5 @@ pub fn start(config: Arc<Config>) {
         .dispatch()
         .await;
     });
+    token
 }

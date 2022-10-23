@@ -10,13 +10,13 @@ use crate::bots::bulletin::Config;
 static MIGRATOR: Migrator = sqlx::migrate!();
 
 pub enum DBAction {
-    CreateConfig(Arc<Config>),
+    CreateConfig(i64, Arc<Config>),
     AddAdmin(i64, String),
     RemoveAdmin(i64),
     SetInfo { name: String, channel_name: String },
 }
 
-pub async fn worker() -> (Sender<DBAction>, Vec<Config>, Arc<Storage>) {
+pub async fn worker() -> (Sender<DBAction>, Vec<(i64,Config)>, Arc<Storage>) {
     let storage = Storage::new().await;
     let (s, r) = crossbeam::channel::unbounded();
     let configs = storage.all_configs().await;
@@ -30,10 +30,9 @@ pub async fn worker() -> (Sender<DBAction>, Vec<Config>, Arc<Storage>) {
         loop {
             let mut sleep = true;
             match r.try_recv() {
-                Ok(DBAction::CreateConfig(cfg)) => {
+                Ok(DBAction::CreateConfig(id, cfg)) => {
                     sleep = false;
                     let r = cfg.receiver.clone();
-                    let id = storage.save_config(cfg).await;
                     receivers.push((r, id));
                 },
                 Err(TryRecvError::Disconnected) => {
@@ -48,7 +47,7 @@ pub async fn worker() -> (Sender<DBAction>, Vec<Config>, Arc<Storage>) {
                     Ok(action) => {
                         sleep = false;
                         match action {
-                            DBAction::CreateConfig(_) => log::error!("Unexpected create config"),
+                            DBAction::CreateConfig(..) => log::error!("Unexpected create config"),
                             DBAction::AddAdmin(admin_id, username) => storage.add_admin(*id, admin_id, username).await,
                             DBAction::RemoveAdmin(admin_id) => storage.remove_admin(*id, admin_id).await,
                             DBAction::SetInfo { name, channel_name } => storage.set_info(*id, name, channel_name).await,
@@ -64,7 +63,7 @@ pub async fn worker() -> (Sender<DBAction>, Vec<Config>, Arc<Storage>) {
             }
         }
     });
-    (s, configs.into_iter().map(|(_,c)|c).collect(), storage)
+    (s, configs, storage)
 }
 
 
@@ -80,7 +79,7 @@ impl Storage {
     async fn new() -> Arc<Self> {
         Arc::new(Self(make_pool().await))
     }
-    async fn save_config(&self, cfg: Arc<Config>) -> i64 {
+    pub async fn save_config(&self, cfg: Arc<Config>) -> i64 {
         let token = cfg.token.clone();
         let channel = cfg.channel.0;
         let mut conn = self.0.acquire().await.unwrap();

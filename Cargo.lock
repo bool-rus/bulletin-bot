@@ -135,6 +135,7 @@ dependencies = [
  "base91",
  "chrono",
  "crossbeam",
+ "futures-util",
  "log",
  "num-format",
  "postcard",
