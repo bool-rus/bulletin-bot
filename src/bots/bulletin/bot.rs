@@ -36,9 +36,7 @@ pub fn start(config: Arc<Config>) -> ShutdownToken {
             log::error!("Error on bot starting: {:?}", e);
             return
         }
-        dispatcher.setup_ctrlc_handler()
-        .dispatch()
-        .await;
+        dispatcher.dispatch().await;
     });
     token
 }
