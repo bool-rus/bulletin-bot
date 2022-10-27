@@ -5,6 +5,7 @@ pub enum CallbackResponse {
     Select(i64, String),
     Restart,
     Nothing,
+    Remove(i64, String),
 }
 
 //TODO: убрать копипасту с bulletin::entity

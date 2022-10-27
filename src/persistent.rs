@@ -86,10 +86,14 @@ impl Storage {
         let token = cfg.token.clone();
         let channel = cfg.channel.0;
         let mut conn = self.0.acquire().await.unwrap();
-        sqlx::query!("insert into bots (token, channel) values (?1, ?2)", token, channel)
+        let bot_id = sqlx::query!("insert into bots (token, channel) values (?1, ?2)", token, channel)
         .execute(&mut conn)
         .await.unwrap()
-        .last_insert_rowid()
+        .last_insert_rowid();
+        for (admin_id, name) in cfg.admins {
+            self.add_admin(bot_id, admin_id.0 as i64, name).await;
+        }
+        bot_id
     }
     async fn all_configs(&self) -> Vec<(i64, BulletinConfig)> {
         let mut conn = self.0.acquire().await.unwrap();
@@ -144,5 +148,9 @@ impl Storage {
             config.admins.push((UserId(r.user_id as u64), r.username));
         });
         Some(config)
+    }
+    pub async fn delete_config(&self, bot_id: i64) {
+        let mut conn = self.0.acquire().await.unwrap();
+        sqlx::query!("delete from bots where id=?1", bot_id).execute(&mut conn).await.unwrap();
     }
 }

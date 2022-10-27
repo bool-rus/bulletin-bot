@@ -37,6 +37,8 @@ enum Command {
     StartBot,
     #[command(description = "мои боты")]
     MyBots,
+    #[command(description = "удалить бота")]
+    Delete,
 }
 
 pub fn bot_commands() -> Vec<BotCommand> {
@@ -91,6 +93,15 @@ fn markup_edit_bot() -> InlineKeyboardMarkup {
     ])
 }
 
+async fn stop_bot(started_bots: StartedBots, id: i64) {
+    let token = started_bots.lock().unwrap().remove(&id);
+    if let Some(token) = token {
+        if let Ok(shutdown) = token.shutdown() {
+            shutdown.await;
+        }
+    }
+}
+
 async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage, started_bots: StartedBots,
     sender: Arc<Sender<DBAction>>) -> FSMResult {
     log::info!("Callback: {:?}", callback);
@@ -110,13 +121,7 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
         CallbackResponse::Restart => {
             if let Some(State::Changing(id)) = dialogue.get().await? {
                 bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_load()).await?;
-                let token = started_bots.lock().unwrap().remove(&id);
-                if let Some(token) = token {
-                    if let Ok(shutdown) = token.shutdown() {
-                        bot.answer_callback_query(&callback_id).text("Остановка...").await.ok_or_log();
-                        shutdown.await;
-                    }
-                }
+                stop_bot(started_bots.clone(), id).await;
                 if let Some(saved_config) = db.get_config(id).await {
                     let conf: RunnableConfig = saved_config.into();
                     let receiver = conf.receiver.clone();
@@ -130,6 +135,12 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
             } else {
                 bot.answer_callback_query(callback_id).text("Неизвестное состояние - нужно выбрать бота через команду /mybots").await?;
             }
+        },
+        CallbackResponse::Remove(id, name) => {
+            bot.edit_message_text(dialogue.chat_id(), message_id, format!("Удаляю бота @{}", name)).await?;
+            stop_bot(started_bots, id).await;
+            db.delete_config(id).await;
+            bot.edit_message_text(dialogue.chat_id(), message_id, format!("Удален бот @{}", name)).await?;
         },
     }
     Ok(())
@@ -159,6 +170,18 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
             let markup = InlineKeyboardMarkup::new(buttons);
             bot.send_message(dialogue.chat_id(), CHOOSE_THE_BOT).reply_markup(markup).await.unwrap();
         },
+        Command::Delete => {
+            let bots = db.get_bots(dialogue.chat_id().0).await;
+            let buttons: Vec<_> = {
+                let mut buttons = Vec::with_capacity(bots.len());
+                for (id, name) in bots {
+                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Remove(id, name).to_string()?)])
+                }
+                buttons
+            };
+            let markup = InlineKeyboardMarkup::new(buttons);
+            bot.send_message(dialogue.chat_id(), "Выбери бота для удаления").reply_markup(markup).await.unwrap();
+        }
     }
     Ok(())
 }

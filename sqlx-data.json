@@ -44,6 +44,16 @@
     },
     "query": "insert into bots (token, channel) values (?1, ?2)"
   },
+  "88d588dd1bdf56d9e312248e27a3d4a4281905cc898345b1bad910bc08928afc": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "delete from bots where id=?1"
+  },
   "92c50edddb3e981caa071f1ef5a9adfb937213910c51e370d535e8547c278463": {
     "describe": {
       "columns": [],
