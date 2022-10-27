@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use strum::EnumCount;
 use teloxide::types::{UserId, ChatId, KeyboardButton, ReplyMarkup};
 
-use crate::{persistent::DBAction, impls::LoggableErrorResult};
+use crate::{persistent::DBAction, impls::LoggableErrorResult, persistent::BulletinConfig};
 
 pub struct Config {
     pub token: String, 
@@ -70,6 +70,14 @@ impl Config {
     }
     pub fn template(&self, template: Template) -> &str {
         self.templates[template as usize].as_str()
+    }
+}
+
+impl From<BulletinConfig> for Config {
+    fn from(cfg: BulletinConfig) -> Self {
+        let BulletinConfig {token, channel, admins} = cfg;
+        let admins = admins.into_iter().map(|a|(a.id, a.name)).collect();
+        Self::new(token, channel, admins)
     }
 }
 

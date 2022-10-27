@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use teloxide::RequestError;
@@ -51,7 +52,7 @@ pub enum State {
     WaitToken,
     WaitForward(String),
     Ready(Arc<BulletinConfig>),
-    Changing(ConfigFromDB), 
+    Changing(i64), 
 }
 
 impl Default for State {
@@ -77,31 +78,65 @@ pub fn make_dialogue_handler() -> FSMHandler {
         .branch(callback_handler)
         .endpoint(on_wrong_message)
 }
-async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage) -> FSMResult {
 
+fn markup_load() -> InlineKeyboardMarkup {
+    InlineKeyboardMarkup::new(vec![
+        vec![InlineKeyboardButton::callback("...", CallbackResponse::Nothing.to_string().unwrap())]
+    ])
+}
+
+fn markup_edit_bot() -> InlineKeyboardMarkup {
+    InlineKeyboardMarkup::new(vec![
+        vec![InlineKeyboardButton::callback("Перезапустить",CallbackResponse::Restart.to_string().unwrap())],
+        vec![InlineKeyboardButton::callback("Изменить текст сообщений", "two")]
+    ])
+}
+
+async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage, started_bots: StartedBots,
+    sender: Arc<Sender<DBAction>>) -> FSMResult {
     log::info!("Callback: {:?}", callback);
+    let callback_id = callback.id;
     let data = callback.data.as_ref().unwrap();
     let message_id = callback.message.unwrap().id; //todo: unwrap - это плохо
     let callback = CallbackResponse::try_from(data.as_str());
     match callback? {
-        CallbackResponse::Stop(_) => todo!(),
-        CallbackResponse::Start(_) => todo!(),
+        CallbackResponse::Nothing => {
+            bot.answer_callback_query(callback_id).text("Погоди, дай подумать...").await?;
+        }
         CallbackResponse::Select(id, name) =>  {
-            let config = db.get_config(id).await
-                .ok_or(format!("Cannot find bot with id: {}", id))?;
-            dialogue.update(State::Changing(config)).await?;
-            let buttons = vec![
-                vec![InlineKeyboardButton::callback("Перезапустить","one")],
-                vec![InlineKeyboardButton::callback("Изменить текст сообщений", "two")]
-            ];
+            dialogue.update(State::Changing(id)).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Выбран бот @{}\nЧто будем делать?", name))
-                .reply_markup(InlineKeyboardMarkup::new(buttons)).await?;
-
+                .reply_markup(markup_edit_bot()).await?;
+        },
+        CallbackResponse::Restart => {
+            if let Some(State::Changing(id)) = dialogue.get().await? {
+                bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_load()).await?;
+                let token = started_bots.lock().unwrap().remove(&id);
+                if let Some(token) = token {
+                    if let Ok(shutdown) = token.shutdown() {
+                        bot.answer_callback_query(&callback_id).text("Остановка...").await.ok_or_log();
+                        shutdown.await;
+                    }
+                }
+                if let Some(saved_config) = db.get_config(id).await {
+                    let conf: BulletinConfig = saved_config.into();
+                    let receiver = conf.receiver.clone();
+                    let token = bulletin::start(Arc::new(conf));
+                    sender.send(DBAction::AddListener(id, receiver)).ok_or_log();
+                    started_bots.lock().unwrap().insert(id, token);
+                    bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_edit_bot()).await?;
+                } else {
+                    bot.send_message(dialogue.chat_id(), "Что-то пошло не так. Бот не найден.").await?;
+                }
+            } else {
+                bot.answer_callback_query(callback_id).text("Неизвестное состояние - нужно выбрать бота через команду /mybots").await?;
+            }
         },
     }
     Ok(())
 }
-async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage, started_bots: StartedBots) -> FSMResult {
+
+async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
     match cmd {
         Command::Help => {
             bot.send_message(dialogue.chat_id(), HELP).await?;
@@ -116,14 +151,9 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
         Command::MyBots => {
             let bots = db.get_bots(dialogue.chat_id().0).await;
             let buttons: Vec<_> = {
-                let started_bots = started_bots.lock().unwrap();
                 let mut buttons = Vec::with_capacity(bots.len());
                 for (id, name) in bots {
-                    let btn = match started_bots.get(&id) {
-                        Some(_) => InlineKeyboardButton::callback("⛔️", CallbackResponse::Stop(id).to_string()?),
-                        None => InlineKeyboardButton::callback("🟢", CallbackResponse::Start(id).to_string()?),
-                    };
-                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Select(id, name).to_string()?), btn])
+                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Select(id, name).to_string()?)])
                 }
                 buttons
             };
@@ -139,7 +169,7 @@ async fn cmd_on_wait_token(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DB
         Command::StartBot => {
             bot.send_message(dialogue.chat_id(), NEED_FORWARD_FROM_CHANNEL).await?;
         },
-        _ => return on_command(cmd, bot, dialogue, db, started_bots).await,
+        _ => return on_command(cmd, bot, dialogue, db).await,
     }
     Ok(())
 }
@@ -200,7 +230,7 @@ async fn cmd_on_ready(
             },
         }
     } else {
-        on_command(cmd, bot, dialogue, db, started_bots).await?;
+        on_command(cmd, bot, dialogue, db).await?;
     }
     Ok(())
 }

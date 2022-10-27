@@ -1,6 +1,6 @@
 
 use std::sync::Arc;
-use crossbeam::channel::{Sender, TryRecvError};
+use crossbeam::channel::{Sender, TryRecvError, Receiver};
 
 use sqlx::{migrate::Migrator, SqlitePool};
 use teloxide::types::{ChatId, UserId};
@@ -11,6 +11,7 @@ static MIGRATOR: Migrator = sqlx::migrate!();
 
 pub enum DBAction {
     CreateConfig(i64, Arc<Config>),
+    AddListener(i64, Receiver<DBAction>),
     AddAdmin(i64, String),
     RemoveAdmin(i64),
     SetInfo { name: String, channel_name: String },
@@ -19,15 +20,15 @@ pub enum DBAction {
 
 #[derive(Debug, Clone)]
 pub struct BulletinConfig {
-    token: String,
-    channel: ChatId,
-    admins: Vec<BotAdmin>,
+    pub token: String,
+    pub channel: ChatId,
+    pub admins: Vec<BotAdmin>,
 }
 
 #[derive(Debug, Clone)]
 pub struct BotAdmin {
-    id: UserId,
-    name: String,
+    pub id: UserId,
+    pub name: String,
 }
 
 pub async fn worker() -> (Sender<DBAction>, Vec<(i64,Config)>, Arc<Storage>) {
@@ -49,6 +50,9 @@ pub async fn worker() -> (Sender<DBAction>, Vec<(i64,Config)>, Arc<Storage>) {
                     let r = cfg.receiver.clone();
                     receivers.push((r, id));
                 },
+                Ok(DBAction::AddListener(id, r)) => {
+                    receivers.push((r,id));
+                },
                 Err(TryRecvError::Disconnected) => {
                     log::info!("db worker stopped");
                     break;
@@ -61,7 +65,7 @@ pub async fn worker() -> (Sender<DBAction>, Vec<(i64,Config)>, Arc<Storage>) {
                     Ok(action) => {
                         sleep = false;
                         match action {
-                            DBAction::CreateConfig(..) => log::error!("Unexpected create config"),
+                            DBAction::CreateConfig(..) | DBAction::AddListener(..) => log::error!("Unexpected create config"),
                             DBAction::AddAdmin(admin_id, username) => storage.add_admin(*id, admin_id, username).await,
                             DBAction::RemoveAdmin(admin_id) => storage.remove_admin(*id, admin_id).await,
                             DBAction::SetInfo { name, channel_name } => storage.set_info(*id, name, channel_name).await,

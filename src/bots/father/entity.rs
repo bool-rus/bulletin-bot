@@ -5,9 +5,9 @@ use super::*;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum CallbackResponse {
-    Stop(i64),
-    Start(i64),
     Select(i64, String),
+    Restart,
+    Nothing,
 }
 
 //TODO: убрать копипасту с bulletin::entity
