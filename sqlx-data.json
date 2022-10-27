@@ -54,6 +54,42 @@
     },
     "query": "insert or replace into bot_info (bot_id, username, channel_name) values (?1, ?2, ?3)"
   },
+  "ad588e9006143d28d71161e9087748cc19596b09282b8b4083a8bdc2e8c56309": {
+    "describe": {
+      "columns": [
+        {
+          "name": "token",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "channel",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "user_id",
+          "ordinal": 2,
+          "type_info": "Int64"
+        },
+        {
+          "name": "username",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select b.token, b.channel, a.user as user_id, a.username from bots b join bot_admins a on a.bot_id=b.id where b.id = ?1"
+  },
   "b40ff7d3004ad99b4d199ec575ecda3f93e735bd667d5f7141fad802385c376e": {
     "describe": {
       "columns": [

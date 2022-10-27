@@ -16,6 +16,20 @@ pub enum DBAction {
     SetInfo { name: String, channel_name: String },
 }
 
+
+#[derive(Debug, Clone)]
+pub struct BulletinConfig {
+    token: String,
+    channel: ChatId,
+    admins: Vec<BotAdmin>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BotAdmin {
+    id: UserId,
+    name: String,
+}
+
 pub async fn worker() -> (Sender<DBAction>, Vec<(i64,Config)>, Arc<Storage>) {
     let storage = Storage::new().await;
     let (s, r) = crossbeam::channel::unbounded();
@@ -125,5 +139,21 @@ impl Storage {
             "select i.bot_id, i.username from bot_info as i join bot_admins as a on i.bot_id=a.bot_id where a.user=?1",
             admin_id
         ).fetch_all(&mut conn).await.unwrap().into_iter().map(|r|(r.bot_id, r.username)).collect()
+    }
+    pub async fn get_config(&self, bot_id: i64) -> Option<BulletinConfig> {
+        let mut conn = self.0.acquire().await.unwrap();
+        let mut rows = sqlx::query!(
+            "select b.token, b.channel, a.user as user_id, a.username from bots b join bot_admins a on a.bot_id=b.id where b.id = ?1",
+            bot_id
+        ).fetch_all(&mut conn).await.unwrap().into_iter();
+        let mut config: BulletinConfig = rows.next().map(|r|BulletinConfig {
+            token: r.token, 
+            channel: ChatId(r.channel), 
+            admins: vec![BotAdmin{id: UserId(r.user_id as u64), name: r.username}]
+        })?;
+        rows.for_each(|r| {
+            config.admins.push(BotAdmin { id: UserId(r.user_id as u64), name: r.username});
+        });
+        Some(config)
     }
 }

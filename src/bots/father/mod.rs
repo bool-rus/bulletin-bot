@@ -4,6 +4,7 @@ use std::sync::Arc;
 use super::*;
 use bulletin::Config as BulletinConfig;
 mod fsm;
+mod entity;
 
 use crate::{impls::LoggableErrorResult, StartedBots};
 use super::DBStorage;

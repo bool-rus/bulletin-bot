@@ -8,6 +8,7 @@ use teloxide::prelude::DependencyMap;
 use teloxide::dptree::Handler;
 use super::*;
 use super::WrappedBot as WBot;
+use super::entity::CallbackResponse;
 
 type MyDialogue = Dialogue<State, MyStorage>;
 pub type FSMResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
@@ -42,12 +43,15 @@ pub fn bot_commands() -> Vec<BotCommand> {
     Command::bot_commands()
 }
 
+pub type ConfigFromDB = crate::persistent::BulletinConfig; //TODO: надо разобраться с наименованиями
+
 #[derive(Clone)]
 pub enum State {
     Start,
     WaitToken,
     WaitForward(String),
     Ready(Arc<BulletinConfig>),
+    Changing(ConfigFromDB), 
 }
 
 impl Default for State {
@@ -57,20 +61,47 @@ impl Default for State {
 }
 
 pub fn make_dialogue_handler() -> FSMHandler {
-    Update::filter_message()
-    .enter_dialogue::<Update, MyStorage, State>()
-    .branch(
-        dptree::entry().filter_command::<Command>()
-        .branch( teloxide::handler!(State::WaitToken).endpoint(cmd_on_wait_token) )
-        .branch( teloxide::handler!(State::Ready(conf)).endpoint(cmd_on_ready) )
-        .endpoint(on_command)
-    )
-    .branch( teloxide::handler!(State::WaitToken).endpoint(wait_token) )
-    .branch( teloxide::handler!(State::WaitForward(token)).endpoint(wait_forward) )
-    .endpoint(on_wrong_message)
+    let message_handler = Update::filter_message()
+        .branch(
+            dptree::entry().filter_command::<Command>()
+            .branch( teloxide::handler!(State::WaitToken).endpoint(cmd_on_wait_token) )
+            .branch( teloxide::handler!(State::Ready(conf)).endpoint(cmd_on_ready) )
+            .endpoint(on_command)
+        )
+        .branch( teloxide::handler!(State::WaitToken).endpoint(wait_token) )
+        .branch( teloxide::handler!(State::WaitForward(token)).endpoint(wait_forward) );
+    let callback_handler = Update::filter_callback_query()
+        .endpoint(on_callback);
+    dptree::entry().enter_dialogue::<Update, MyStorage, State>()
+        .branch(message_handler)
+        .branch(callback_handler)
+        .endpoint(on_wrong_message)
 }
+async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage) -> FSMResult {
 
-async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
+    log::info!("Callback: {:?}", callback);
+    let data = callback.data.as_ref().unwrap();
+    let message_id = callback.message.unwrap().id; //todo: unwrap - это плохо
+    let callback = CallbackResponse::try_from(data.as_str());
+    match callback? {
+        CallbackResponse::Stop(_) => todo!(),
+        CallbackResponse::Start(_) => todo!(),
+        CallbackResponse::Select(id, name) =>  {
+            let config = db.get_config(id).await
+                .ok_or(format!("Cannot find bot with id: {}", id))?;
+            dialogue.update(State::Changing(config)).await?;
+            let buttons = vec![
+                vec![InlineKeyboardButton::callback("Перезапустить","one")],
+                vec![InlineKeyboardButton::callback("Изменить текст сообщений", "two")]
+            ];
+            bot.edit_message_text(dialogue.chat_id(), message_id, format!("Выбран бот @{}\nЧто будем делать?", name))
+                .reply_markup(InlineKeyboardMarkup::new(buttons)).await?;
+
+        },
+    }
+    Ok(())
+}
+async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage, started_bots: StartedBots) -> FSMResult {
     match cmd {
         Command::Help => {
             bot.send_message(dialogue.chat_id(), HELP).await?;
@@ -84,9 +115,18 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
         },
         Command::MyBots => {
             let bots = db.get_bots(dialogue.chat_id().0).await;
-            let buttons = bots.into_iter().map(|(id, name)|{
-                vec![InlineKeyboardButton::callback(name, id.to_string())]
-            });
+            let buttons: Vec<_> = {
+                let started_bots = started_bots.lock().unwrap();
+                let mut buttons = Vec::with_capacity(bots.len());
+                for (id, name) in bots {
+                    let btn = match started_bots.get(&id) {
+                        Some(_) => InlineKeyboardButton::callback("⛔️", CallbackResponse::Stop(id).to_string()?),
+                        None => InlineKeyboardButton::callback("🟢", CallbackResponse::Start(id).to_string()?),
+                    };
+                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Select(id, name).to_string()?), btn])
+                }
+                buttons
+            };
             let markup = InlineKeyboardMarkup::new(buttons);
             bot.send_message(dialogue.chat_id(), CHOOSE_THE_BOT).reply_markup(markup).await.unwrap();
         },
@@ -94,12 +134,12 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
     Ok(())
 }
 
-async fn cmd_on_wait_token(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
+async fn cmd_on_wait_token(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage, started_bots: StartedBots) -> FSMResult {
     match cmd {
         Command::StartBot => {
             bot.send_message(dialogue.chat_id(), NEED_FORWARD_FROM_CHANNEL).await?;
         },
-        _ => return on_command(cmd, bot, dialogue, db).await,
+        _ => return on_command(cmd, bot, dialogue, db, started_bots).await,
     }
     Ok(())
 }
@@ -160,7 +200,7 @@ async fn cmd_on_ready(
             },
         }
     } else {
-        on_command(cmd, bot, dialogue, db).await?;
+        on_command(cmd, bot, dialogue, db, started_bots).await?;
     }
     Ok(())
 }
