@@ -76,7 +76,6 @@ impl Config {
 impl From<BulletinConfig> for Config {
     fn from(cfg: BulletinConfig) -> Self {
         let BulletinConfig {token, channel, admins} = cfg;
-        let admins = admins.into_iter().map(|a|(a.id, a.name)).collect();
         Self::new(token, channel, admins)
     }
 }

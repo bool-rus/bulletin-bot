@@ -1,6 +1,4 @@
-use std::collections::HashSet;
 use std::sync::Arc;
-
 use teloxide::RequestError;
 use teloxide::types::{MessageKind, ForwardedFrom, BotCommand, Me, InlineKeyboardMarkup};
 use teloxide::dispatching::UpdateFilterExt;
@@ -10,6 +8,7 @@ use teloxide::dptree::Handler;
 use super::*;
 use super::WrappedBot as WBot;
 use super::entity::CallbackResponse;
+use crate::bots::bulletin::Config as RunnableConfig;
 
 type MyDialogue = Dialogue<State, MyStorage>;
 pub type FSMResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
@@ -44,14 +43,14 @@ pub fn bot_commands() -> Vec<BotCommand> {
     Command::bot_commands()
 }
 
-pub type ConfigFromDB = crate::persistent::BulletinConfig; //TODO: надо разобраться с наименованиями
+use crate::persistent::BulletinConfig; //TODO: надо разобраться с наименованиями
 
 #[derive(Clone)]
 pub enum State {
     Start,
     WaitToken,
     WaitForward(String),
-    Ready(Arc<BulletinConfig>),
+    Ready(BulletinConfig),
     Changing(i64), 
 }
 
@@ -119,9 +118,9 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
                     }
                 }
                 if let Some(saved_config) = db.get_config(id).await {
-                    let conf: BulletinConfig = saved_config.into();
+                    let conf: RunnableConfig = saved_config.into();
                     let receiver = conf.receiver.clone();
-                    let token = bulletin::start(Arc::new(conf));
+                    let token = bulletin::start(conf);
                     sender.send(DBAction::AddListener(id, receiver)).ok_or_log();
                     started_bots.lock().unwrap().insert(id, token);
                     bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_edit_bot()).await?;
@@ -164,7 +163,7 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
     Ok(())
 }
 
-async fn cmd_on_wait_token(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage, started_bots: StartedBots) -> FSMResult {
+async fn cmd_on_wait_token(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
     match cmd {
         Command::StartBot => {
             bot.send_message(dialogue.chat_id(), NEED_FORWARD_FROM_CHANNEL).await?;
@@ -186,10 +185,9 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
         if let Some(forward) = msg.forward {
             if let ForwardedFrom::Chat(chat) = forward.from {
                 if chat.is_channel() {
-                    let channel_id = chat.id;
+                    let channel = chat.id;
                     let admin = msg.from.ok_or("Cannot invoke user for message (admin of bot)")?;
-                    let conf = BulletinConfig::new(token, channel_id, vec![]);
-                    conf.add_admin(admin.id, make_username(&admin));
+                    let conf = BulletinConfig { token, channel, admins: vec![(admin.id, make_username(&admin))]};
                     dialogue.update(State::Ready(conf.into())).await?;
                     bot.send_message(dialogue.chat_id(), BOT_IS_READY).await?;
                     return Ok(())
@@ -205,7 +203,7 @@ async fn cmd_on_ready(
     cmd: Command, 
     bot: WBot, 
     dialogue: MyDialogue, 
-    conf: Arc<BulletinConfig>, 
+    conf: BulletinConfig, 
     sender: Arc<Sender<DBAction>>, 
     db: DBStorage,
     started_bots: StartedBots,
@@ -214,6 +212,7 @@ async fn cmd_on_ready(
         match check_bot(conf.token.clone()).await {
             Ok(me) => {
                 let id = db.save_config(conf.clone()).await;
+                let conf: RunnableConfig = conf.into();
                 let receiver = conf.receiver.clone();
                 sender.send(DBAction::AddListener(id, receiver)).ok_or_log();
                 let token = bulletin::start(conf);

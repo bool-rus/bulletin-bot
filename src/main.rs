@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 
 use impls::LoggableErrorResult;
+use persistent::DBAction::AddListener;
 use teloxide::dispatching::ShutdownToken;
 
 mod impls;
@@ -14,7 +15,10 @@ async fn main() {
     init_logger();
     let (sender, configs, storage) = persistent::worker().await;
     let started_bots = configs.into_iter().fold(HashMap::new(),|mut map, (id, conf)|{
-        map.insert(id, bots::bulletin::start(conf.into()));
+        let conf: bots::bulletin::Config = conf.into();
+        let receiver = conf.receiver.clone();
+        map.insert(id, bots::bulletin::start(conf));
+        sender.send(AddListener(id, receiver)).unwrap();
         map
     });
     bots::father::start(

@@ -5,8 +5,6 @@ use crossbeam::channel::{Sender, TryRecvError, Receiver};
 use sqlx::{migrate::Migrator, SqlitePool};
 use teloxide::types::{ChatId, UserId};
 
-use crate::bots::bulletin::Config;
-
 static MIGRATOR: Migrator = sqlx::migrate!();
 
 pub enum DBAction {
@@ -21,22 +19,14 @@ pub enum DBAction {
 pub struct BulletinConfig {
     pub token: String,
     pub channel: ChatId,
-    pub admins: Vec<BotAdmin>,
+    pub admins: Vec<(UserId, String)>,
 }
 
-#[derive(Debug, Clone)]
-pub struct BotAdmin {
-    pub id: UserId,
-    pub name: String,
-}
-
-pub async fn worker() -> (Sender<DBAction>, Vec<(i64,Config)>, Arc<Storage>) {
+pub async fn worker() -> (Sender<DBAction>, Vec<(i64,BulletinConfig)>, Arc<Storage>) {
     let storage = Storage::new().await;
     let (s, r) = crossbeam::channel::unbounded();
     let configs = storage.all_configs().await;
-    let mut receivers: Vec<_> = configs.iter().map(|(id, conf)|{
-        (conf.receiver.clone(), *id)
-    }).collect();
+    let mut receivers = Vec::with_capacity(configs.len());
 
     let cloned_storage = storage.clone();
     tokio::spawn(async move {
@@ -92,7 +82,7 @@ impl Storage {
     async fn new() -> Arc<Self> {
         Arc::new(Self(make_pool().await))
     }
-    pub async fn save_config(&self, cfg: Arc<Config>) -> i64 {
+    pub async fn save_config(&self, cfg: BulletinConfig) -> i64 {
         let token = cfg.token.clone();
         let channel = cfg.channel.0;
         let mut conn = self.0.acquire().await.unwrap();
@@ -101,7 +91,7 @@ impl Storage {
         .await.unwrap()
         .last_insert_rowid()
     }
-    async fn all_configs(&self) -> Vec<(i64, Config)> {
+    async fn all_configs(&self) -> Vec<(i64, BulletinConfig)> {
         let mut conn = self.0.acquire().await.unwrap();
         let recs = sqlx::query!("select * from bots").fetch_all(&mut conn).await.unwrap();
         let mut res = Vec::with_capacity(recs.len());
@@ -110,7 +100,7 @@ impl Storage {
             let admins = sqlx::query!("select user, username from bot_admins where bot_id=?1", id)
             .fetch_all(&mut conn).await.unwrap()
             .iter().map(|r|(UserId(r.user as u64), r.username.clone())).collect();
-            let conf = Config::new(r.token, ChatId(r.channel), admins);
+            let conf = BulletinConfig{token: r.token, channel: ChatId(r.channel), admins};
             res.push((id,conf));
         }
         res
@@ -148,10 +138,10 @@ impl Storage {
         let mut config: BulletinConfig = rows.next().map(|r|BulletinConfig {
             token: r.token, 
             channel: ChatId(r.channel), 
-            admins: vec![BotAdmin{id: UserId(r.user_id as u64), name: r.username}]
+            admins: vec![(UserId(r.user_id as u64), r.username)]
         })?;
         rows.for_each(|r| {
-            config.admins.push(BotAdmin { id: UserId(r.user_id as u64), name: r.username});
+            config.admins.push((UserId(r.user_id as u64), r.username));
         });
         Some(config)
     }

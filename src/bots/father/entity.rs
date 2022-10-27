@@ -1,8 +1,5 @@
 use serde::{Serialize, Deserialize};
 
-use super::*;
-
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum CallbackResponse {
     Select(i64, String),

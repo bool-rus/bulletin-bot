@@ -2,7 +2,6 @@
 use std::sync::Arc;
 
 use super::*;
-use bulletin::Config as BulletinConfig;
 mod fsm;
 mod entity;
 
