@@ -214,7 +214,8 @@ async fn cmd_on_ready(
         match check_bot(conf.token.clone()).await {
             Ok(me) => {
                 let id = db.save_config(conf.clone()).await;
-                sender.send(DBAction::CreateConfig(id, conf.clone())).ok_or_log();
+                let receiver = conf.receiver.clone();
+                sender.send(DBAction::AddListener(id, receiver)).ok_or_log();
                 let token = bulletin::start(conf);
                 started_bots.lock().unwrap().insert(id, token);
                 bot.send_message(dialogue.chat_id(), format!("Бот @{} запущен", me.username())).reply_markup(

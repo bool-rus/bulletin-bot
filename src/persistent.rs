@@ -10,7 +10,6 @@ use crate::bots::bulletin::Config;
 static MIGRATOR: Migrator = sqlx::migrate!();
 
 pub enum DBAction {
-    CreateConfig(i64, Arc<Config>),
     AddListener(i64, Receiver<DBAction>),
     AddAdmin(i64, String),
     RemoveAdmin(i64),
@@ -45,12 +44,8 @@ pub async fn worker() -> (Sender<DBAction>, Vec<(i64,Config)>, Arc<Storage>) {
         loop {
             let mut sleep = true;
             match r.try_recv() {
-                Ok(DBAction::CreateConfig(id, cfg)) => {
-                    sleep = false;
-                    let r = cfg.receiver.clone();
-                    receivers.push((r, id));
-                },
                 Ok(DBAction::AddListener(id, r)) => {
+                    sleep = false;
                     receivers.push((r,id));
                 },
                 Err(TryRecvError::Disconnected) => {
@@ -65,7 +60,7 @@ pub async fn worker() -> (Sender<DBAction>, Vec<(i64,Config)>, Arc<Storage>) {
                     Ok(action) => {
                         sleep = false;
                         match action {
-                            DBAction::CreateConfig(..) | DBAction::AddListener(..) => log::error!("Unexpected create config"),
+                            DBAction::AddListener(..) => log::error!("Unexpected add listener"),
                             DBAction::AddAdmin(admin_id, username) => storage.add_admin(*id, admin_id, username).await,
                             DBAction::RemoveAdmin(admin_id) => storage.remove_admin(*id, admin_id).await,
                             DBAction::SetInfo { name, channel_name } => storage.set_info(*id, name, channel_name).await,
