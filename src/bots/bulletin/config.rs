@@ -17,19 +17,6 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(token: String, channel: ChatId, admins: Vec<(UserId, String)>) -> Self {
-        let (sender, receiver) = crossbeam::channel::unbounded();
-        let admins = admins.into_iter().collect();
-        Self {
-            token,
-            channel,
-            sender,
-            receiver,
-            admins: Mutex::new(admins),
-            banned: Mutex::new(HashMap::new()),
-            templates: Template::default_templates(),
-        }
-    }
     pub fn keyboard(&self, user_id: UserId) -> ReplyMarkup {
         use super::res::*;
         use KeyboardButton as KB;
@@ -75,8 +62,18 @@ impl Config {
 
 impl From<BulletinConfig> for Config {
     fn from(cfg: BulletinConfig) -> Self {
-        let BulletinConfig {token, channel, admins} = cfg;
-        Self::new(token, channel, admins)
+        let BulletinConfig {token, channel, admins, templates} = cfg;
+        let (sender, receiver) = crossbeam::channel::unbounded();
+        let admins = admins.into_iter().collect();
+        Self {
+            token,
+            channel,
+            sender,
+            receiver,
+            admins: Mutex::new(admins),
+            banned: Mutex::new(HashMap::new()),
+            templates: Template::create(templates),
+        }
     }
 }
 
@@ -106,6 +103,16 @@ pub enum Template {
 }
 
 impl Template {
+    pub const LEN: usize = Template::COUNT;
+    pub fn create(overrides: Vec<(usize, String)>) -> [String; Template::COUNT] {
+        let mut templates = Template::default_templates();
+        for (n, text) in overrides {
+            if n < Template::COUNT {
+                templates[n] = text;
+            }
+        }
+        templates
+    }
     fn default_templates() -> [String; Template::COUNT] {
         use Template::*;
         let mut r: [String; Template::COUNT] = Default::default();

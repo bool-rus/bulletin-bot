@@ -8,7 +8,7 @@ use teloxide::dptree::Handler;
 use super::*;
 use super::WrappedBot as WBot;
 use super::entity::CallbackResponse;
-use crate::bots::bulletin::Config as RunnableConfig;
+use crate::bots::bulletin::{Config as RunnableConfig, Template};
 
 type MyDialogue = Dialogue<State, MyStorage>;
 pub type FSMResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
@@ -53,7 +53,8 @@ pub enum State {
     WaitToken,
     WaitForward(String),
     Ready(BulletinConfig),
-    Changing(i64), 
+    Changing(i64, String), 
+    WaitText(i64, String, usize),
 }
 
 impl Default for State {
@@ -71,7 +72,8 @@ pub fn make_dialogue_handler() -> FSMHandler {
             .endpoint(on_command)
         )
         .branch( teloxide::handler!(State::WaitToken).endpoint(wait_token) )
-        .branch( teloxide::handler!(State::WaitForward(token)).endpoint(wait_forward) );
+        .branch( teloxide::handler!(State::WaitForward(token)).endpoint(wait_forward) )
+        .branch(teloxide::handler!(State::WaitText(bot_id,name,template_id)).endpoint(on_wait_template));
     let callback_handler = Update::filter_callback_query()
         .endpoint(on_callback);
     dptree::entry().enter_dialogue::<Update, MyStorage, State>()
@@ -88,8 +90,8 @@ fn markup_load() -> InlineKeyboardMarkup {
 
 fn markup_edit_bot() -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new(vec![
-        vec![InlineKeyboardButton::callback("Перезапустить",CallbackResponse::Restart.to_string().unwrap())],
-        vec![InlineKeyboardButton::callback("Изменить текст сообщений", "two")]
+        vec![InlineKeyboardButton::callback("Перезапустить", CallbackResponse::Restart.to_string().unwrap())],
+        vec![InlineKeyboardButton::callback("Изменить тексты", CallbackResponse::EditTemplates.to_string().unwrap())]
     ])
 }
 
@@ -100,6 +102,28 @@ async fn stop_bot(started_bots: StartedBots, id: i64) {
             shutdown.await;
         }
     }
+}
+
+async fn markup_edit_template(bot_id: i64, db: &DBStorage) -> InlineKeyboardMarkup {
+    let overrides = db.get_templates(bot_id).await;
+    let btns: Vec<_> = Template::create(overrides).into_iter().enumerate().map(|(i, text)|{
+        vec![
+            InlineKeyboardButton::callback(text, CallbackResponse::EditTemplate(i).to_string().unwrap()),
+        ]
+    }).collect();
+    InlineKeyboardMarkup::new(btns)
+}
+
+async fn on_wait_template(bot: WBot, dialogue: MyDialogue, 
+    (bot_id, name, template_id): (i64, String, usize), 
+    msg: Message, db: DBStorage) -> FSMResult {
+    let text = msg.text().ok_or("No text on wait text")?;
+    dialogue.update(State::Changing(bot_id, name.clone())).await?;
+    db.add_template(bot_id, template_id, text.to_string()).await;
+    let markup = markup_edit_template(bot_id, &db).await;
+    bot.send_message(dialogue.chat_id(), format!("Текст заменен (для вступления в силу нужен рестарт бота)\nРедактируем тексты для бота @{}", name))
+        .reply_markup(markup).await?;
+    Ok(())
 }
 
 async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage, started_bots: StartedBots,
@@ -114,12 +138,12 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
             bot.answer_callback_query(callback_id).text("Погоди, дай подумать...").await?;
         }
         CallbackResponse::Select(id, name) =>  {
-            dialogue.update(State::Changing(id)).await?;
+            dialogue.update(State::Changing(id, name.clone())).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Выбран бот @{}\nЧто будем делать?", name))
                 .reply_markup(markup_edit_bot()).await?;
         },
         CallbackResponse::Restart => {
-            if let Some(State::Changing(id)) = dialogue.get().await? {
+            if let Some(State::Changing(id, _)) = dialogue.get().await? {
                 bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_load()).await?;
                 stop_bot(started_bots.clone(), id).await;
                 if let Some(saved_config) = db.get_config(id).await {
@@ -142,9 +166,45 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
             db.delete_config(id).await;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Удален бот @{}", name)).await?;
         },
+        CallbackResponse::EditTemplates => {
+            if let Some(State::Changing(bot_id, name)) = dialogue.get().await? {
+                let markup = markup_edit_template(bot_id, &db).await;
+                bot.edit_message_text(dialogue.chat_id(), message_id, format!("Редактируем тексты для бота @{}",name))
+                    .reply_markup(markup).await?;
+            } else {
+                bot.answer_callback_query(callback_id).text("Неизвестное состояние - нужно выбрать бота через команду /mybots").await?;
+            }
+        },
+        CallbackResponse::EditTemplate(template_id) => {
+            if let Some(State::Changing(bot_id, name )) = dialogue.get().await? {
+                dialogue.update(State::WaitText(bot_id, name.clone(), template_id)).await?;
+                let templates = Template::create(db.get_templates(bot_id).await);
+                if template_id >= templates.len() {
+                    Err("template_id more than templates count")?;
+                }
+                let text = &templates[template_id];
+                bot.edit_message_text(dialogue.chat_id(), message_id, 
+                    format!("Меняем текстовку для @{} (Просто присылай нужную)\nСейчас она выглядит так:\n\n{}", name, text))
+                    .reply_markup(InlineKeyboardMarkup::new(vec![vec![
+                        InlineKeyboardButton::callback("Сбросить", CallbackResponse::ResetTemplate.to_string().unwrap())
+                    ]])).await?;
+            } else {
+                log::info!("неверный статус");
+            }
+        },
+        CallbackResponse::ResetTemplate => {
+            if let Some(State::WaitText(bot_id, name, template_id)) = dialogue.get().await? {
+                dialogue.update(State::Changing(bot_id, name.clone())).await?;
+                db.delete_template(bot_id, template_id).await;
+                let markup = markup_edit_template(bot_id, &db).await;
+                bot.send_message(dialogue.chat_id(), format!("Текст заменен (для вступления в силу нужен рестарт бота)\nРедактируем тексты для бота @{}", name))
+                    .reply_markup(markup).await?;
+            }
+        },
     }
     Ok(())
 }
+
 
 async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
     match cmd {
@@ -210,7 +270,8 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
                 if chat.is_channel() {
                     let channel = chat.id;
                     let admin = msg.from.ok_or("Cannot invoke user for message (admin of bot)")?;
-                    let conf = BulletinConfig { token, channel, admins: vec![(admin.id, make_username(&admin))]};
+                    let conf = BulletinConfig { token, channel, 
+                        admins: vec![(admin.id, make_username(&admin))], templates: vec![]};
                     dialogue.update(State::Ready(conf.into())).await?;
                     bot.send_message(dialogue.chat_id(), BOT_IS_READY).await?;
                     return Ok(())

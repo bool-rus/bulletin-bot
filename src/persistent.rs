@@ -2,10 +2,11 @@
 use std::sync::Arc;
 use crossbeam::channel::{Sender, TryRecvError, Receiver};
 
-use sqlx::{migrate::Migrator, SqlitePool};
+use sqlx::{migrate::Migrator, SqlitePool, pool::PoolConnection, Sqlite};
 use teloxide::types::{ChatId, UserId};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
+type Conn = sqlx::pool::PoolConnection<Sqlite>;
 
 pub enum DBAction {
     AddListener(i64, Receiver<DBAction>),
@@ -20,6 +21,7 @@ pub struct BulletinConfig {
     pub token: String,
     pub channel: ChatId,
     pub admins: Vec<(UserId, String)>,
+    pub templates: Vec<(usize, String)>,
 }
 
 pub async fn worker() -> (Sender<DBAction>, Vec<(i64,BulletinConfig)>, Arc<Storage>) {
@@ -101,10 +103,9 @@ impl Storage {
         let mut res = Vec::with_capacity(recs.len());
         for r in recs {
             let id = r.id;
-            let admins = sqlx::query!("select user, username from bot_admins where bot_id=?1", id)
-            .fetch_all(&mut conn).await.unwrap()
-            .iter().map(|r|(UserId(r.user as u64), r.username.clone())).collect();
-            let conf = BulletinConfig{token: r.token, channel: ChatId(r.channel), admins};
+            let admins = get_admins(&mut conn, id).await;
+            let templates = get_templates(&mut conn, id).await;
+            let conf = BulletinConfig{token: r.token, channel: ChatId(r.channel), admins, templates};
             res.push((id,conf));
         }
         res
@@ -125,7 +126,7 @@ impl Storage {
             "insert or replace into bot_info (bot_id, username, channel_name) values (?1, ?2, ?3)", 
             bot_id, name, channel_name
         ).execute(&mut conn).await.unwrap();
-    }
+    } 
     pub async fn get_bots(&self, admin_id: i64) -> Vec<(i64, String)> {
         let mut conn = self.0.acquire().await.unwrap();
         sqlx::query!(
@@ -135,22 +136,51 @@ impl Storage {
     }
     pub async fn get_config(&self, bot_id: i64) -> Option<BulletinConfig> {
         let mut conn = self.0.acquire().await.unwrap();
-        let mut rows = sqlx::query!(
-            "select b.token, b.channel, a.user as user_id, a.username from bots b join bot_admins a on a.bot_id=b.id where b.id = ?1",
+        let bot = sqlx::query!(
+            "select token, channel from bots where id=?1",
             bot_id
-        ).fetch_all(&mut conn).await.unwrap().into_iter();
-        let mut config: BulletinConfig = rows.next().map(|r|BulletinConfig {
-            token: r.token, 
-            channel: ChatId(r.channel), 
-            admins: vec![(UserId(r.user_id as u64), r.username)]
-        })?;
-        rows.for_each(|r| {
-            config.admins.push((UserId(r.user_id as u64), r.username));
-        });
+        ).fetch_optional(&mut conn).await.unwrap()?;
+        let admins = get_admins(&mut conn, bot_id).await;
+        let templates = get_templates(&mut conn, bot_id).await;
+
+        let config = BulletinConfig {
+            token: bot.token, 
+            channel: ChatId(bot.channel), 
+            admins,
+            templates,
+        };
         Some(config)
     }
     pub async fn delete_config(&self, bot_id: i64) {
         let mut conn = self.0.acquire().await.unwrap();
         sqlx::query!("delete from bots where id=?1", bot_id).execute(&mut conn).await.unwrap();
     }
+    pub async fn get_templates(&self, bot_id: i64) -> Vec<(usize, String)> {
+        get_templates(&mut self.0.acquire().await.unwrap(), bot_id).await
+    }
+    pub async fn delete_template(&self, bot_id: i64, template_id: usize) {
+        let template_id = template_id as u32;
+        sqlx::query!("delete from bot_template where bot_id=?1 and text_id=?2", bot_id, template_id)
+            .execute(&mut self.0.acquire().await.unwrap()).await.unwrap();
+    }
+    pub async fn add_template(&self, bot_id: i64, template_id: usize, text: String) {
+        let template_id = template_id as u32;
+        sqlx::query!("insert into bot_template (bot_id, text_id, text) values (?1, ?2, ?3)",
+            bot_id, template_id, text)
+            .execute(&mut self.0.acquire().await.unwrap()).await.unwrap();
+    }
+}
+
+
+async fn get_templates(conn: &mut Conn, bot_id: i64) -> Vec<(usize, String)> {
+    sqlx::query!("select text_id, text from bot_template where bot_id=?1", bot_id)
+        .fetch_all(conn).await.unwrap().into_iter()
+        .map(|r|(r.text_id as usize, r.text)).collect()
+}
+
+async fn get_admins(conn: &mut Conn, bot_id: i64) -> Vec<(UserId, String)> {
+    sqlx::query!("select user, username from bot_admins where bot_id=?1", bot_id)
+        .fetch_all(conn).await.unwrap()
+        .into_iter().map(|r|(UserId(r.user as u64), r.username))
+        .collect()
 }

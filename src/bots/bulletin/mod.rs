@@ -5,6 +5,7 @@ use ad::Ad;
 
 pub use config::Config;
 pub use bot::start;
+pub use config::Template;
 use super::make_username;
 
 type MyStorage = teloxide::dispatching::dialogue::InMemStorage<fsm::State>;
