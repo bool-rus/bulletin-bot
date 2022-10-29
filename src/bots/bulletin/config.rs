@@ -103,7 +103,6 @@ pub enum Template {
 }
 
 impl Template {
-    pub const LEN: usize = Template::COUNT;
     pub fn create(overrides: Vec<(usize, String)>) -> [String; Template::COUNT] {
         let mut templates = Template::default_templates();
         for (n, text) in overrides {

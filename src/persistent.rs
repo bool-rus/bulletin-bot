@@ -2,7 +2,7 @@
 use std::sync::Arc;
 use crossbeam::channel::{Sender, TryRecvError, Receiver};
 
-use sqlx::{migrate::Migrator, SqlitePool, pool::PoolConnection, Sqlite};
+use sqlx::{migrate::Migrator, SqlitePool, Sqlite};
 use teloxide::types::{ChatId, UserId};
 
 static MIGRATOR: Migrator = sqlx::migrate!();

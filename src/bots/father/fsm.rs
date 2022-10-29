@@ -19,12 +19,9 @@ const SEND_TOKEN: &str = "Для начала создай бота с помо�
 После создания бота он пришлет тебе токен. Вот этот токен надо прислать сюда.";
 const FORWARD: &str = "Отлично! Теперь нужно добавить этого бота в админы канала, чтобы он мог постить туда сообщения.
 А чтобы понимать, что это за канал - пересылай сюда любое сообщение оттуда.";
-const NOTHING_START: &str = "Сначала используй команду /newbot";
-const NEED_FORWARD_FROM_CHANNEL: &str = "Нужно переслать сообщение из канала";
 const NOT_FORWARDED_FROM_CHANNEL: &str = "Это не то. Нужно переслать сообщение из канала"; 
 const CHOOSE_THE_BOT: &str = "Выбери бота:";
-const BOT_IS_READY: &str = "Бот готов. Чтобы запустить бота, используй команду /startbot";
-const INVALID_TOKEN: &str = "Токен не подходит. Попробуй сначала";
+const INVALID_TOKEN: &str = "Неверный токен. Попробуй другой";
 
 #[derive(BotCommands, Clone)]
 #[command(rename = "lowercase", description = "These commands are supported:")]
@@ -33,8 +30,6 @@ enum Command {
     Help,
     #[command(description = "создать бота")]
     NewBot,
-    #[command(description = "запустить бота")]
-    StartBot,
     #[command(description = "мои боты")]
     MyBots,
     #[command(description = "удалить бота")]
@@ -52,7 +47,6 @@ pub enum State {
     Start,
     WaitToken,
     WaitForward(String),
-    Ready(BulletinConfig),
     Changing(i64, String), 
     WaitText(i64, String, usize),
 }
@@ -65,12 +59,7 @@ impl Default for State {
 
 pub fn make_dialogue_handler() -> FSMHandler {
     let message_handler = Update::filter_message()
-        .branch(
-            dptree::entry().filter_command::<Command>()
-            .branch( teloxide::handler!(State::WaitToken).endpoint(cmd_on_wait_token) )
-            .branch( teloxide::handler!(State::Ready(conf)).endpoint(cmd_on_ready) )
-            .endpoint(on_command)
-        )
+        .branch(dptree::entry().filter_command::<Command>().endpoint(on_command))
         .branch( teloxide::handler!(State::WaitToken).endpoint(wait_token) )
         .branch( teloxide::handler!(State::WaitForward(token)).endpoint(wait_forward) )
         .branch(teloxide::handler!(State::WaitText(bot_id,name,template_id)).endpoint(on_wait_template));
@@ -120,10 +109,17 @@ async fn on_wait_template(bot: WBot, dialogue: MyDialogue,
     let text = msg.text().ok_or("No text on wait text")?;
     dialogue.update(State::Changing(bot_id, name.clone())).await?;
     db.add_template(bot_id, template_id, text.to_string()).await;
-    let markup = markup_edit_template(bot_id, &db).await;
-    bot.send_message(dialogue.chat_id(), format!("Текст заменен (для вступления в силу нужен рестарт бота)\nРедактируем тексты для бота @{}", name))
-        .reply_markup(markup).await?;
+    bot.send_message(dialogue.chat_id(), format!("Текст заменен (для вступления в силу нужен рестарт бота)\nВыбран бот @{}\nЧто будем делать?", name))
+        .reply_markup(markup_edit_bot()).await?;
     Ok(())
+}
+
+fn start_bot(id: i64, config: BulletinConfig, started_bots: StartedBots, sender: Arc<Sender<DBAction>>) {
+    let conf: RunnableConfig = config.into();
+    let receiver = conf.receiver.clone();
+    let token = bulletin::start(conf);
+    sender.send(DBAction::AddListener(id, receiver)).ok_or_log();
+    started_bots.lock().unwrap().insert(id, token);
 }
 
 async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage, started_bots: StartedBots,
@@ -147,11 +143,7 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
                 bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_load()).await?;
                 stop_bot(started_bots.clone(), id).await;
                 if let Some(saved_config) = db.get_config(id).await {
-                    let conf: RunnableConfig = saved_config.into();
-                    let receiver = conf.receiver.clone();
-                    let token = bulletin::start(conf);
-                    sender.send(DBAction::AddListener(id, receiver)).ok_or_log();
-                    started_bots.lock().unwrap().insert(id, token);
+                    start_bot(id, saved_config, started_bots, sender);
                     bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_edit_bot()).await?;
                 } else {
                     bot.send_message(dialogue.chat_id(), "Что-то пошло не так. Бот не найден.").await?;
@@ -196,9 +188,8 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
             if let Some(State::WaitText(bot_id, name, template_id)) = dialogue.get().await? {
                 dialogue.update(State::Changing(bot_id, name.clone())).await?;
                 db.delete_template(bot_id, template_id).await;
-                let markup = markup_edit_template(bot_id, &db).await;
-                bot.send_message(dialogue.chat_id(), format!("Текст заменен (для вступления в силу нужен рестарт бота)\nРедактируем тексты для бота @{}", name))
-                    .reply_markup(markup).await?;
+                bot.send_message(dialogue.chat_id(), format!("Текст сброшен (для вступления в силу нужен рестарт бота)\nВыбран бот @{}\nЧто будем делать?", name))
+                    .reply_markup(markup_edit_bot()).await?;
             }
         },
     }
@@ -207,6 +198,9 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
 
 
 async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
+    if !matches!(cmd, Command::Help) {
+        dialogue.exit().await?;
+    }
     match cmd {
         Command::Help => {
             bot.send_message(dialogue.chat_id(), HELP).await?;
@@ -214,9 +208,6 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
         Command::NewBot => {
             dialogue.update(State::WaitToken).await?;
             bot.send_message(dialogue.chat_id(), SEND_TOKEN).await?;
-        },
-        Command::StartBot => {
-            bot.send_message(dialogue.chat_id(), NOTHING_START).await?;
         },
         Command::MyBots => {
             let bots = db.get_bots(dialogue.chat_id().0).await;
@@ -246,34 +237,39 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
     Ok(())
 }
 
-async fn cmd_on_wait_token(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
-    match cmd {
-        Command::StartBot => {
-            bot.send_message(dialogue.chat_id(), NEED_FORWARD_FROM_CHANNEL).await?;
+async fn wait_token(msg: Message, bot: WBot, dialogue: MyDialogue) -> FSMResult {
+    let token = msg.text().ok_or("Empty token")?;
+
+    match check_bot(token).await {
+        Ok(me) => {
+            let name = me.username();
+            dialogue.update(State::WaitForward(token.into())).await?;
+            bot.send_message(dialogue.chat_id(), format!("Получен токен для бота @{}\n{}", name, FORWARD)).await?;
         },
-        _ => return on_command(cmd, bot, dialogue, db).await,
+        Err(e) => {
+            log::error!("cannot create bot (maybe bad token): {:?}", e);
+            bot.send_message(dialogue.chat_id(), INVALID_TOKEN).await?;
+        },
     }
     Ok(())
 }
 
-async fn wait_token(msg: Message, bot: WBot, dialogue: MyDialogue) -> FSMResult {
-    let token = msg.text().ok_or("Empty token")?;
-    dialogue.update(State::WaitForward(token.into())).await?;
-    bot.send_message(dialogue.chat_id(), FORWARD).await?;
-    Ok(())
-}
-
-async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: String) -> FSMResult {
+async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: String, db: DBStorage, started_bots: StartedBots, sender: Arc<Sender<DBAction>>) -> FSMResult {
     if let MessageKind::Common(msg) = msg.kind {
         if let Some(forward) = msg.forward {
             if let ForwardedFrom::Chat(chat) = forward.from {
                 if chat.is_channel() {
                     let channel = chat.id;
                     let admin = msg.from.ok_or("Cannot invoke user for message (admin of bot)")?;
-                    let conf = BulletinConfig { token, channel, 
+                    let config = BulletinConfig { token, channel, 
                         admins: vec![(admin.id, make_username(&admin))], templates: vec![]};
-                    dialogue.update(State::Ready(conf.into())).await?;
-                    bot.send_message(dialogue.chat_id(), BOT_IS_READY).await?;
+                    let id = db.save_config(config.clone()).await;
+                    start_bot(id, config, started_bots, sender);
+                    dialogue.exit().await?;
+                    bot.send_message(dialogue.chat_id(), "Бот запущен").reply_markup(
+                        teloxide::types::InlineKeyboardMarkup::default()
+                        .append_row(vec![InlineKeyboardButton::url("На чай разработчику", "https://pay.mysbertips.ru/93867309".try_into().unwrap())])
+                    ).await?;
                     return Ok(())
                 }
             }
@@ -283,43 +279,7 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
     Ok(())
 }
 
-async fn cmd_on_ready(
-    cmd: Command, 
-    bot: WBot, 
-    dialogue: MyDialogue, 
-    conf: BulletinConfig, 
-    sender: Arc<Sender<DBAction>>, 
-    db: DBStorage,
-    started_bots: StartedBots,
-) -> FSMResult {
-    if let Command::StartBot = cmd {
-        match check_bot(conf.token.clone()).await {
-            Ok(me) => {
-                let id = db.save_config(conf.clone()).await;
-                let conf: RunnableConfig = conf.into();
-                let receiver = conf.receiver.clone();
-                sender.send(DBAction::AddListener(id, receiver)).ok_or_log();
-                let token = bulletin::start(conf);
-                started_bots.lock().unwrap().insert(id, token);
-                bot.send_message(dialogue.chat_id(), format!("Бот @{} запущен", me.username())).reply_markup(
-                    teloxide::types::InlineKeyboardMarkup::default()
-                    .append_row(vec![InlineKeyboardButton::url("На чай разработчику", "https://pay.mysbertips.ru/93867309".try_into().unwrap())])
-                ).await?;
-                dialogue.exit().await?;
-            },
-            Err(e) => {
-                log::error!("cannot create bot: {:?}", e);
-                bot.send_message(dialogue.chat_id(), INVALID_TOKEN).await?;
-                dialogue.exit().await?;
-            },
-        }
-    } else {
-        on_command(cmd, bot, dialogue, db).await?;
-    }
-    Ok(())
-}
-
-async fn check_bot(token: String) -> Result<Me, RequestError> {
+async fn check_bot<S: Into<String>>(token: S) -> Result<Me, RequestError> {
     let bot = Bot::new(token);
     bot.get_me().send().await
 }
