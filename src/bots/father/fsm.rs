@@ -60,15 +60,17 @@ impl Default for State {
 }
 
 pub fn make_dialogue_handler() -> FSMHandler {
+    use teloxide::handler;
+    use State::*;
     let message_handler = Update::filter_message()
         .branch(dptree::entry().filter_command::<Command>().endpoint(on_command))
-        .branch( teloxide::handler!(State::WaitToken).endpoint(wait_token) )
-        .branch( teloxide::handler!(State::WaitForward(token)).endpoint(wait_forward) )
-        .branch(teloxide::handler!(State::WaitText(bot_id,name,template_id)).endpoint(on_wait_template))
-        .branch(teloxide::handler!(State::WaitTag(bot_id,name)).endpoint(on_wait_tag))
-        .branch(teloxide::handler!(State::UpdatingToken(bot_id, name)).endpoint(on_update_token));
+        .branch(handler!(WaitToken).endpoint(wait_token) )
+        .branch(handler!(WaitForward(token)).endpoint(wait_forward) )
+        .branch(handler!(WaitText(bot_id,name,template_id)).endpoint(on_wait_template))
+        .branch(handler!(WaitTag(bot_id,name)).endpoint(on_wait_tag))
+        .branch(handler!(UpdatingToken(bot_id, name)).endpoint(on_update_token));
     let callback_handler = Update::filter_callback_query()
-        .branch(teloxide::handler!(State::Changing(id, name)).endpoint(on_changing_callback))
+        .branch(handler!(Changing(id, name)).endpoint(on_changing_callback))
         .endpoint(on_callback);
     dptree::entry().enter_dialogue::<Update, MyStorage, State>()
         .branch(message_handler)
@@ -154,11 +156,11 @@ fn start_bot(id: i64, config: BulletinConfig, started_bots: StartedBots, sender:
 async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage, started_bots: StartedBots,
     sender: Arc<Sender<DBAction>>, (bot_id, bot_name): (i64, String)
 ) -> FSMResult {
+    use CallbackResponse::*;
     let data = callback.data.as_ref().ok_or("cannot invoke data from callback")?;
     let message_id = callback.message.ok_or("cannot invoke message_id from callback")?.id;
-    let callback = CallbackResponse::try_from(data.as_str())?;
-    match callback {
-        CallbackResponse::Restart => {
+    match CallbackResponse::try_from(data.as_str())? {
+        Restart => {
             bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_load()).await?;
             stop_bot(started_bots.clone(), bot_id).await;
             if let Some(saved_config) = db.get_config(bot_id).await {
@@ -168,12 +170,12 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
                 bot.send_message(dialogue.chat_id(), "Что-то пошло не так. Бот не найден.").await?;
             }
         },
-        CallbackResponse::EditTemplates => {
+        EditTemplates => {
             let markup = markup_edit_template(bot_id, &db).await;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Редактируем тексты для бота @{}",bot_name))
                 .reply_markup(markup).await?;
         },
-        CallbackResponse::EditTemplate(template_id) => {
+        EditTemplate(template_id) => {
             dialogue.update(State::WaitText(bot_id, bot_name.clone(), template_id)).await?;
             let templates = Template::create(db.get_templates(bot_id).await);
             if template_id >= templates.len() {
@@ -183,32 +185,32 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
             bot.edit_message_text(dialogue.chat_id(), message_id, 
                 format!("Меняем текстовку для @{} (Просто присылай нужную)\nСейчас она выглядит так:\n\n{}", bot_name, text))
                 .reply_markup(InlineKeyboardMarkup::new(vec![vec![
-                    InlineKeyboardButton::callback("Сбросить", CallbackResponse::ResetTemplate.to_string().unwrap())
+                    InlineKeyboardButton::callback("Сбросить", ResetTemplate.to_string().unwrap())
                 ]])).await?;
         },
-        CallbackResponse::UpdateToken => {
+        UpdateToken => {
             dialogue.update(State::UpdatingToken(bot_id, bot_name.clone())).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Присылай новый токен для бота {}", bot_name)).await?;
         },
-        CallbackResponse::AddTag => {
+        AddTag => {
             dialogue.update(State::WaitTag(bot_id, bot_name)).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, "Присылай название тега").await?;
         },
-        CallbackResponse::RemoveTag => {
+        RemoveTag => {
             let markup: Vec<_> = db.get_tags(bot_id).await.into_iter().map(|name|{
-                vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::TagToRemove(name).to_string().unwrap())]
+                vec![InlineKeyboardButton::callback(name.clone(), TagToRemove(name).to_string().unwrap())]
             }).collect();
             bot.edit_message_text(dialogue.chat_id(), message_id, "Выбери тег для удаления")
                 .reply_markup(InlineKeyboardMarkup::new(markup)).await?;
         },
-        CallbackResponse::TagToRemove(tag) => {
+        TagToRemove(tag) => {
             db.delete_tag(bot_id, tag.clone()).await;
             bot.edit_message_text(dialogue.chat_id(), message_id, 
                 format!("Тег {} удален! Для вступления изменений в силу требуется перезагрузить бота", tag)
             ).await?;
             bot.send_message(dialogue.chat_id(), format!("Выбран бот @{}\nЧто будем делать?", bot_name)).reply_markup(markup_edit_bot()).await?;
         },
-        CallbackResponse::Nothing => {},
+        Nothing => {},
         callback => {
             Err(format!("invalid callback on changing state: {:?}", callback))?;
         }
@@ -217,22 +219,22 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
 }
 
 async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage, started_bots: StartedBots) -> FSMResult {
+    use CallbackResponse::*;
     let data = callback.data.as_ref().ok_or("cannot invoke data from callback")?;
     let message_id = callback.message.ok_or("cannot invoke message_id from callback")?.id;
-    let callback = CallbackResponse::try_from(data.as_str());
-    match callback? {
-        CallbackResponse::Select(id, name) =>  {
+    match CallbackResponse::try_from(data.as_str())? {
+        Select(id, name) =>  {
             dialogue.update(State::Changing(id, name.clone())).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Выбран бот @{}\nЧто будем делать?", name))
                 .reply_markup(markup_edit_bot()).await?;
         },
-        CallbackResponse::Remove(id, name) => {
+        Remove(id, name) => {
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Удаляю бота @{}", name)).await?;
             stop_bot(started_bots, id).await;
             db.delete_config(id).await;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Удален бот @{}", name)).await?;
         },
-        CallbackResponse::ResetTemplate => {
+        ResetTemplate => {
             if let Some(State::WaitText(bot_id, name, template_id)) = dialogue.get().await? {
                 dialogue.update(State::Changing(bot_id, name.clone())).await?;
                 db.delete_template(bot_id, template_id).await;
