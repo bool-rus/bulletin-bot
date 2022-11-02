@@ -169,6 +169,10 @@ impl Storage {
             bot_id, template_id, text)
             .execute(&mut self.0.acquire().await.unwrap()).await.unwrap();
     }
+    pub async fn update_token(&self, bot_id: i64, token: String) {
+        sqlx::query!("update bots set token = ?1 where id = ?2", token, bot_id)
+        .execute(&mut self.0.acquire().await.unwrap()).await.unwrap();
+    }
 }
 
 

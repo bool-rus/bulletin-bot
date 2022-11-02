@@ -152,6 +152,16 @@
     },
     "query": "select * from bots"
   },
+  "bd6e8bdeb2803d792ac71ca061c29ce79da130ac3dfebadd8e0522a4e847c4f1": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "update bots set token = ?1 where id = ?2"
+  },
   "c3869a9aa3a5cc48558f84bbc0f8de64431f7eb1d13d816ed6c786918525cbc4": {
     "describe": {
       "columns": [],
