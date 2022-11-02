@@ -24,9 +24,10 @@ async fn main() {
     bots::father::start(
         std::env::var("TELEGRAM_BOT_TOKEN").expect("need to set env variable TELEGRAM_BOT_TOKEN"), 
         sender,
-        storage,
+        storage.clone(),
         Arc::new(Mutex::new(started_bots))
     ).await.ok_or_log();
+    storage.close().await;
 }
 
 fn init_logger() {

@@ -84,6 +84,11 @@ impl Storage {
     async fn new() -> Arc<Self> {
         Arc::new(Self(make_pool().await))
     }
+    pub async fn close(&self) {
+        log::info!("closing database connections...");
+        self.0.close().await;
+        log::info!("database connections closed!");
+    }
     pub async fn save_config(&self, cfg: BulletinConfig) -> i64 {
         let token = cfg.token.clone();
         let channel = cfg.channel.0;
