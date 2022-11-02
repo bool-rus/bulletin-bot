@@ -43,7 +43,8 @@ impl CallbackResponse {
 pub enum Target {
     Buy,
     Sell,
-    JustAQuestion,
+    Ask,
+    Recommend,
 }
 
 #[derive(Clone, Debug)]

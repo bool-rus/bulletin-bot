@@ -12,7 +12,8 @@ fn make_ad_text(user: &User, ad: &Ad) -> String {
     let price = match ad.target {
         Target::Buy => format!("\\#куплю за {}", price),
         Target::Sell => format!("\\#продам за {}", price),
-        Target::JustAQuestion => "\\#простоспросить".into(),
+        Target::Ask => "\\#вопрос".into(),
+        Target::Recommend => "\\#рекомендация".into(),
     };
     let full_name = escape(&user.full_name());
     let sign = user_mention(user_id, &full_name);

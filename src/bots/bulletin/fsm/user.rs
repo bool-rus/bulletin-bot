@@ -65,13 +65,16 @@ async fn on_user_action(
             dialogue.update(State::ActionWaiting).await?;
             let callback = InlineKeyboardButton::callback;
             bot.send_message(chat_id, conf.template(Tpl::RequestTarget))
-            .reply_markup(InlineKeyboardMarkup::default()
-                .append_row(vec![
-                    callback(conf.template(Tpl::ToBuy), CallbackResponse::Target(Target::Buy).to_string().unwrap()),
-                    callback(conf.template(Tpl::ToSell), CallbackResponse::Target(Target::Sell).to_string().unwrap()),
-                ])
-                .append_row(vec![callback(conf.template(Tpl::JustAQuestion), CallbackResponse::Target(Target::JustAQuestion).to_string().unwrap() )])
-            ).await?;
+            .reply_markup(InlineKeyboardMarkup::new( vec![
+                vec![
+                    callback("купить", CallbackResponse::Target(Target::Buy).to_string().unwrap()),
+                    callback("продать", CallbackResponse::Target(Target::Sell).to_string().unwrap()),
+                ],
+                vec![
+                    callback("спросить", CallbackResponse::Target(Target::Ask).to_string().unwrap()),
+                    callback("рекомендовать", CallbackResponse::Target(Target::Recommend).to_string().unwrap()),
+                ]
+            ])).await?;
         },
         UserAction::Publish => on_publish(bot, conf, dialogue).await?,
         UserAction::Yes => if let State::Preview(ad) = dialogue.get_or_default().await? {
@@ -107,7 +110,8 @@ async fn on_user_action(
         },
         UserAction::Target(target) => if let State::ActionWaiting = dialogue.get_or_default().await? {
             let text = match target {
-                Target::JustAQuestion => {
+                Target::Ask |
+                Target::Recommend => {
                     dialogue.update(State::Filling(Ad::new(target, 0))).await?;
                     conf.template(Tpl::FillRequest)
                 }

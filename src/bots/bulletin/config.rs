@@ -96,9 +96,6 @@ pub enum Template {
     NewComment,
     MuteCommand,
     RequestTarget,
-    ToBuy,
-    ToSell,
-    JustAQuestion,
     AdminsOnly,
 }
 
@@ -131,9 +128,6 @@ impl Template {
         r[NewComment as usize]      = "Добавлен новый комментарий".into();
         r[MuteCommand as usize]     = "!mute".into();
         r[RequestTarget as usize]   = "Цель объявления?".into();
-        r[ToBuy as usize]           = "Куплю".into();
-        r[ToSell as usize]          = "Продам".into();
-        r[JustAQuestion as usize]   = "Мне просто спросить".into();
         r[AdminsOnly as usize]      = "Хорошая попытка, но так могут только админы".into();
         r
     }
