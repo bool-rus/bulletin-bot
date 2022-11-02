@@ -62,7 +62,7 @@ impl Config {
 
 impl From<BulletinConfig> for Config {
     fn from(cfg: BulletinConfig) -> Self {
-        let BulletinConfig {token, channel, admins, templates} = cfg;
+        let BulletinConfig {token, channel, admins, templates, ..} = cfg;
         let (sender, receiver) = crossbeam::channel::unbounded();
         let admins = admins.into_iter().collect();
         Self {

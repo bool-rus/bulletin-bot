@@ -10,6 +10,9 @@ pub enum CallbackResponse {
     EditTemplate(usize),
     ResetTemplate,
     UpdateToken,
+    AddTag,
+    RemoveTag,
+    TagToRemove(String),
 }
 
 //TODO: убрать копипасту с bulletin::entity

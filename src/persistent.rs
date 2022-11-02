@@ -22,6 +22,7 @@ pub struct BulletinConfig {
     pub channel: ChatId,
     pub admins: Vec<(UserId, String)>,
     pub templates: Vec<(usize, String)>,
+    pub tags: Vec<String>,
 }
 
 pub async fn worker() -> (Sender<DBAction>, Vec<(i64,BulletinConfig)>, Arc<Storage>) {
@@ -110,7 +111,8 @@ impl Storage {
             let id = r.id;
             let admins = get_admins(&mut conn, id).await;
             let templates = get_templates(&mut conn, id).await;
-            let conf = BulletinConfig{token: r.token, channel: ChatId(r.channel), admins, templates};
+            let tags = get_tags(&mut conn, id).await;
+            let conf = BulletinConfig{token: r.token, channel: ChatId(r.channel), admins, templates, tags};
             res.push((id,conf));
         }
         res
@@ -147,12 +149,14 @@ impl Storage {
         ).fetch_optional(&mut conn).await.unwrap()?;
         let admins = get_admins(&mut conn, bot_id).await;
         let templates = get_templates(&mut conn, bot_id).await;
+        let tags = get_tags(&mut conn, bot_id).await;
 
         let config = BulletinConfig {
             token: bot.token, 
             channel: ChatId(bot.channel), 
             admins,
             templates,
+            tags,
         };
         Some(config)
     }
@@ -176,7 +180,18 @@ impl Storage {
     }
     pub async fn update_token(&self, bot_id: i64, token: String) {
         sqlx::query!("update bots set token = ?1 where id = ?2", token, bot_id)
-        .execute(&mut self.0.acquire().await.unwrap()).await.unwrap();
+            .execute(&mut self.0.acquire().await.unwrap()).await.unwrap();
+    }
+    pub async fn add_tag(&self, bot_id: i64, name: String) {
+        sqlx::query!("insert into tags (bot_id, name) values (?1, ?2)", bot_id, name)
+            .execute(&mut self.0.acquire().await.unwrap()).await.unwrap();
+    }
+    pub async fn delete_tag(&self, bot_id: i64, name: String) {
+        sqlx::query!("delete from tags where bot_id = ?1 and name = ?2", bot_id, name)
+            .execute(&mut self.0.acquire().await.unwrap()).await.unwrap();
+    }
+    pub async fn get_tags(&self, bot_id: i64) -> Vec<String> {
+        get_tags(&mut self.0.acquire().await.unwrap(), bot_id).await
     }
 }
 
@@ -191,5 +206,12 @@ async fn get_admins(conn: &mut Conn, bot_id: i64) -> Vec<(UserId, String)> {
     sqlx::query!("select user, username from bot_admins where bot_id=?1", bot_id)
         .fetch_all(conn).await.unwrap()
         .into_iter().map(|r|(UserId(r.user as u64), r.username))
+        .collect()
+}
+
+async fn get_tags(conn: &mut Conn, bot_id: i64) -> Vec<String> {
+    sqlx::query!("select name from tags where bot_id = ?1", bot_id)
+        .fetch_all(conn).await.unwrap()
+        .into_iter().map(|r|r.name)
         .collect()
 }

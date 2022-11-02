@@ -1,0 +1,8 @@
+CREATE TABLE tags (
+    id INTEGER PRIMARY KEY NOT NULL,
+    bot_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+
+    FOREIGN KEY (bot_id) REFERENCES bots(id) ON DELETE CASCADE,
+    UNIQUE(bot_id, name) ON CONFLICT REPLACE
+);

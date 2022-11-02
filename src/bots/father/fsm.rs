@@ -50,6 +50,7 @@ pub enum State {
     Changing(i64, String), 
     WaitText(i64, String, usize),
     UpdatingToken(i64, String),
+    WaitTag(i64, String),
 }
 
 impl Default for State {
@@ -64,6 +65,7 @@ pub fn make_dialogue_handler() -> FSMHandler {
         .branch( teloxide::handler!(State::WaitToken).endpoint(wait_token) )
         .branch( teloxide::handler!(State::WaitForward(token)).endpoint(wait_forward) )
         .branch(teloxide::handler!(State::WaitText(bot_id,name,template_id)).endpoint(on_wait_template))
+        .branch(teloxide::handler!(State::WaitTag(bot_id,name)).endpoint(on_wait_tag))
         .branch(teloxide::handler!(State::UpdatingToken(bot_id, name)).endpoint(on_update_token));
     let callback_handler = Update::filter_callback_query()
         .branch(teloxide::handler!(State::Changing(id, name)).endpoint(on_changing_callback))
@@ -81,10 +83,14 @@ fn markup_load() -> InlineKeyboardMarkup {
 }
 
 fn markup_edit_bot() -> InlineKeyboardMarkup {
+    use CallbackResponse::*;
+    let callback = InlineKeyboardButton::callback;
     InlineKeyboardMarkup::new(vec![
-        vec![InlineKeyboardButton::callback("Перезапустить", CallbackResponse::Restart.to_string().unwrap())],
-        vec![InlineKeyboardButton::callback("Изменить тексты", CallbackResponse::EditTemplates.to_string().unwrap())],
-        vec![InlineKeyboardButton::callback("Обновить токен", CallbackResponse::UpdateToken.to_string().unwrap())],
+        vec![callback("Перезапустить",      Restart.to_string().unwrap()        )],
+        vec![callback("Изменить тексты",    EditTemplates.to_string().unwrap()  )],
+        vec![callback("Добавить тег",       AddTag.to_string().unwrap()         )],
+        vec![callback("Удалить тег",        RemoveTag.to_string().unwrap()      )],
+        vec![callback("Обновить токен",     UpdateToken.to_string().unwrap()    )],
     ])
 }
 
@@ -105,6 +111,15 @@ async fn markup_edit_template(bot_id: i64, db: &DBStorage) -> InlineKeyboardMark
         ]
     }).collect();
     InlineKeyboardMarkup::new(btns)
+}
+
+async fn on_wait_tag(bot: WBot, dialogue: MyDialogue, (bot_id, bot_name): (i64, String), db: DBStorage, msg: Message) -> FSMResult {
+    let text = msg.text().ok_or("No text on wait text")?;
+    dialogue.update(State::Changing(bot_id, bot_name.clone())).await?;
+    db.add_tag(bot_id, text.to_string()).await;
+    bot.send_message(dialogue.chat_id(), format!("Тег добавлен (для вступления в силу нужен рестарт бота)\nВыбран бот @{}\nЧто будем делать?", bot_name))
+        .reply_markup(markup_edit_bot()).await?;
+    Ok(())
 }
 
 async fn on_update_token(bot: WBot, dialogue: MyDialogue, (bot_id, bot_name): (i64, String), db: DBStorage, msg: Message) -> FSMResult {
@@ -174,7 +189,25 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
         CallbackResponse::UpdateToken => {
             dialogue.update(State::UpdatingToken(bot_id, bot_name.clone())).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Присылай новый токен для бота {}", bot_name)).await?;
-        }
+        },
+        CallbackResponse::AddTag => {
+            dialogue.update(State::WaitTag(bot_id, bot_name)).await?;
+            bot.edit_message_text(dialogue.chat_id(), message_id, "Присылай название тега").await?;
+        },
+        CallbackResponse::RemoveTag => {
+            let markup: Vec<_> = db.get_tags(bot_id).await.into_iter().map(|name|{
+                vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::TagToRemove(name).to_string().unwrap())]
+            }).collect();
+            bot.edit_message_text(dialogue.chat_id(), message_id, "Выбери тег для удаления")
+                .reply_markup(InlineKeyboardMarkup::new(markup)).await?;
+        },
+        CallbackResponse::TagToRemove(tag) => {
+            db.delete_tag(bot_id, tag.clone()).await;
+            bot.edit_message_text(dialogue.chat_id(), message_id, 
+                format!("Тег {} удален! Для вступления изменений в силу требуется перезагрузить бота", tag)
+            ).await?;
+            bot.send_message(dialogue.chat_id(), format!("Выбран бот @{}\nЧто будем делать?", bot_name)).reply_markup(markup_edit_bot()).await?;
+        },
         CallbackResponse::Nothing => {},
         callback => {
             Err(format!("invalid callback on changing state: {:?}", callback))?;
@@ -280,7 +313,7 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
                     let channel = chat.id;
                     let admin = msg.from.ok_or("Cannot invoke user for message (admin of bot)")?;
                     let config = BulletinConfig { token, channel, 
-                        admins: vec![(admin.id, make_username(&admin))], templates: vec![]};
+                        admins: vec![(admin.id, make_username(&admin))], templates: vec![], tags: vec![]};
                     let id = db.save_config(config.clone()).await;
                     start_bot(id, config, started_bots, sender);
                     dialogue.exit().await?;
