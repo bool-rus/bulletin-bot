@@ -17,7 +17,10 @@ fn make_ad_text(user: &User, ad: &Ad) -> String {
     };
     let full_name = escape(&user.full_name());
     let sign = user_mention(user_id, &full_name);
-    format!("{}\n{}\n\n{}\n",user_link + &text, price, sign)
+    let tags = ad.tags.iter().fold(String::new(), |sum, tag|{
+        sum + " \\#" + tag
+    });
+    format!("{}\n{}\n\n{}\n\n{}\n",user_link + &text, tags, price, sign)
 }
 
 pub fn make_message_link(text: &str, url: &str, thread: Option<i32>) -> Option<String> {

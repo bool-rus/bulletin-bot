@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::entity::{Content, Target};
 use super::Price;
 
@@ -7,6 +9,7 @@ pub struct Ad {
     pub price: Price,
     pub text: String,
     pub photos: Vec<String>,
+    pub tags: HashSet<String>,
 }
 impl Ad {
     pub fn new(target: Target, price: Price) -> Self {
@@ -15,6 +18,7 @@ impl Ad {
             price,
             text: String::new(),
             photos: Vec::new(),
+            tags: HashSet::new(),
         }
     }
     pub fn fill(&mut self, content: Content) {

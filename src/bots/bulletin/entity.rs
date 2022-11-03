@@ -20,6 +20,8 @@ pub enum CallbackResponse {
     User(UserId),
     Remove(Vec<MessageId>),
     AdminToRemove(UserId),
+    AddTag(String, i32),
+    RemoveTag(String, i32),
 }
 
 impl TryFrom<&str> for CallbackResponse {
@@ -71,7 +73,9 @@ pub enum UserAction {
     Publish,
     Yes,
     No,
-    Remove(Vec<MessageId>)
+    Remove(Vec<MessageId>),
+    AddTag(String, i32),
+    RemoveTag(String, i32),
 }
 
 #[derive(Clone, Debug)]
@@ -200,6 +204,8 @@ impl Into<SignalKind> for CallbackResponse {
             CallbackResponse::AdminToRemove(u) => SK::AdminAction(AdminAction::AdminToRemove(u)),
             CallbackResponse::Remove(msgs) => SK::UserAction(UserAction::Remove(msgs)),
             CallbackResponse::Target(target) => SK::UserAction(UserAction::Target(target)),
+            CallbackResponse::AddTag(tag, msg_id) => SK::UserAction(UserAction::AddTag(tag, msg_id)),
+            CallbackResponse::RemoveTag(tag, msg_id) => SK::UserAction(UserAction::RemoveTag(tag, msg_id)),
         }
     }
 }

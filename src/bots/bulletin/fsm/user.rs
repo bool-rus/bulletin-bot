@@ -18,14 +18,28 @@ async fn on_price_waiting(
     content: Content,
     conf: Conf,
 ) -> FSMResult {
-    let msg = if let Some(price) = content.price() {
-        dialogue.update(State::Filling(Ad::new(target, price))).await?;
-        conf.template(Tpl::FillRequest)
+    if let Some(price) = content.price() {
+        let ad = Ad::new(target, price);
+        let msg = bot.send_message(dialogue.chat_id(), conf.template(Tpl::FillRequest)).await?;
+        bot.edit_message_reply_markup(dialogue.chat_id(), msg.id)
+            .reply_markup(tags_markup(&ad, conf.tags.as_slice(), msg.id)).await?;
+        dialogue.update(State::Filling(ad)).await?;
     } else {
-        conf.template(Tpl::NotAPrice)
+        bot.send_message(dialogue.chat_id(), conf.template(Tpl::NotAPrice)).await?;
     };
-    bot.send_message(dialogue.chat_id(), msg).await?;
     Ok(())
+}
+
+fn tags_markup(ad: &Ad, tags: &[String], message_id: i32) -> InlineKeyboardMarkup {
+    let btns: Vec<_> = tags.iter().map(|name|{
+        let name = name.clone();
+        vec![if ad.tags.contains(&name) {
+            InlineKeyboardButton::callback(format!("✅ {}", name), CallbackResponse::RemoveTag(name, message_id).to_string().unwrap())
+        } else {
+            InlineKeyboardButton::callback(format!("☑️ {}", name), CallbackResponse::AddTag(name, message_id).to_string().unwrap())
+        }]
+    }).collect();
+    InlineKeyboardMarkup::new(btns)
 }
 
 async fn on_filling(
@@ -109,18 +123,32 @@ async fn on_user_action(
             };
         },
         UserAction::Target(target) => if let State::ActionWaiting = dialogue.get_or_default().await? {
-            let text = match target {
+            match target {
                 Target::Ask |
                 Target::Recommend => {
-                    dialogue.update(State::Filling(Ad::new(target, 0))).await?;
-                    conf.template(Tpl::FillRequest)
+                    let ad = Ad::new(target, 0);
+                    let msg = bot.send_message(dialogue.chat_id(), conf.template(Tpl::FillRequest)).await?;
+                    bot.edit_message_reply_markup(dialogue.chat_id(), msg.id)
+                        .reply_markup(tags_markup(&ad, &conf.tags, msg.id)).await?;
+                    dialogue.update(State::Filling(ad)).await?;
                 }
                 target => {
                     dialogue.update(State::PriceWaitng(target)).await?;
-                    conf.template(Tpl::RequestPrice)
+                    bot.send_message(chat_id, conf.template(Tpl::RequestPrice)).await?;
                 }
             };
-            bot.send_message(chat_id, text).await?;
+        },
+        UserAction::AddTag(tag, message_id) => if let State::Filling(mut ad) = dialogue.get_or_default().await? {
+            ad.tags.insert(tag);
+            let markup = tags_markup(&ad, &conf.tags, message_id);
+            dialogue.update(State::Filling(ad)).await?;
+            bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup).await?;
+        },
+        UserAction::RemoveTag(tag, message_id) => if let State::Filling(mut ad) = dialogue.get_or_default().await? {
+            ad.tags.remove(&tag);
+            let markup = tags_markup(&ad, &conf.tags, message_id);
+            dialogue.update(State::Filling(ad)).await?;
+            bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup).await?;
         },
     }
     Ok(())

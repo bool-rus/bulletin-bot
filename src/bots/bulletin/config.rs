@@ -12,6 +12,7 @@ pub struct Config {
     pub channel: ChatId,
     pub sender: crossbeam::channel::Sender<DBAction>,
     pub receiver: crossbeam::channel::Receiver<DBAction>,
+    pub tags: Vec<String>,
     templates: [String; Template::COUNT],
     banned: Mutex<HashMap<UserId, String>>,
 }
@@ -62,7 +63,7 @@ impl Config {
 
 impl From<BulletinConfig> for Config {
     fn from(cfg: BulletinConfig) -> Self {
-        let BulletinConfig {token, channel, admins, templates, ..} = cfg;
+        let BulletinConfig {token, channel, admins, templates, tags} = cfg;
         let (sender, receiver) = crossbeam::channel::unbounded();
         let admins = admins.into_iter().collect();
         Self {
@@ -73,6 +74,7 @@ impl From<BulletinConfig> for Config {
             admins: Mutex::new(admins),
             banned: Mutex::new(HashMap::new()),
             templates: Template::create(templates),
+            tags,
         }
     }
 }
