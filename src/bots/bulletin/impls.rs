@@ -24,9 +24,7 @@ pub fn make_message_link(text: &str, url: &str, thread: Option<i32>) -> Option<S
     let text = escape(text);
     let mut words: Vec<_> = text.split(" ").collect();
     let url = if let Some(thread) = thread {
-        let mut chars = url.chars();
-        chars.next_back();
-        format!("{}?thread={}", chars.as_str(), thread)
+        format!("{}?thread={}", url, thread)
     } else {
         url.to_owned()
     };
