@@ -117,7 +117,7 @@ impl Template {
         r[Help as usize] = super::res::HELP.into();
         r[RequestPrice as usize]    = "Назови свою цену (число) в рублях".into();
         r[NotAPrice as usize]       = "Это не цена, нужно прислать число".into();
-        r[FillRequest as usize]     = "Присылай описание или фотки".into();
+        r[FillRequest as usize]     = "Присылай описание или фотки. Не забудь выбрать теги ниже".into();
         r[ContinueFilling as usize] = "Теперь можешь заменить описание или добавить фото (не более 10)".into();
         r[Published as usize]       = "Объявление опубликовано".into();
         r[RemoveAd as usize]        = "Снять с публикации".into();

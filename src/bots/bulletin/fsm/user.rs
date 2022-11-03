@@ -1,3 +1,5 @@
+use std::iter::empty;
+
 use super::*;
 use config::Template as Tpl;
 pub fn process_user(handler: FSMHandler) -> FSMHandler {
@@ -31,14 +33,29 @@ async fn on_price_waiting(
 }
 
 fn tags_markup(ad: &Ad, tags: &[String], message_id: i32) -> InlineKeyboardMarkup {
-    let btns: Vec<_> = tags.iter().map(|name|{
+    let empty = ["notag".to_owned()];
+    let tags = if tags.is_empty() {
+        empty.as_slice()
+    } else {
+        tags
+    };
+    let (mut btns, line) = tags.iter().map(|name|{
         let name = name.clone();
-        vec![if ad.tags.contains(&name) {
+        if ad.tags.contains(&name) {
             InlineKeyboardButton::callback(format!("✅ {}", name), CallbackResponse::RemoveTag(name, message_id).to_string().unwrap())
         } else {
             InlineKeyboardButton::callback(format!("☑️ {}", name), CallbackResponse::AddTag(name, message_id).to_string().unwrap())
-        }]
-    }).collect();
+        }
+    }).fold((Vec::new(), Vec::new()), |(mut all, mut line), btn| {
+        if line.len() < 3 {
+            line.push(btn)
+        } else {
+            all.push(line);
+            line = Vec::new();
+        };
+        (all, line)
+    });
+    btns.push(line);
     InlineKeyboardMarkup::new(btns)
 }
 
