@@ -2,6 +2,9 @@ use std::iter::empty;
 
 use super::*;
 use config::Template as Tpl;
+
+const LINE_SIZE: usize = 3;
+
 pub fn process_user(handler: FSMHandler) -> FSMHandler {
     handler.branch(
         dptree::filter_map(Signal::filter_content)
@@ -46,12 +49,13 @@ fn tags_markup(ad: &Ad, tags: &[String], message_id: i32) -> InlineKeyboardMarku
         } else {
             InlineKeyboardButton::callback(format!("☑️ {}", name), CallbackResponse::AddTag(name, message_id).to_string().unwrap())
         }
-    }).fold((Vec::new(), Vec::new()), |(mut all, mut line), btn| {
-        if line.len() < 3 {
+    }).fold((Vec::new(), Vec::with_capacity(LINE_SIZE)), |(mut all, mut line), btn| {
+        if line.len() < LINE_SIZE {
             line.push(btn)
         } else {
             all.push(line);
-            line = Vec::new();
+            line = Vec::with_capacity(LINE_SIZE);
+            line.push(btn);
         };
         (all, line)
     });
