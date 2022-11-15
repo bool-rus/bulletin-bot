@@ -243,6 +243,7 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
             }
         },
         callback => {
+            bot.edit_message_text(dialogue.chat_id(), message_id, "<Неактуально>").await?;
             Err(format!("invalid callback on common state: {:?}", callback))?;
         }
     }
