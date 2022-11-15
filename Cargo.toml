@@ -9,7 +9,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.8", features = ["rt-multi-thread", "macros", "sync"]}
 teloxide = { version = "0.9.2", features = ["macros", "auto-send"] }
-sqlx = { version = "0.5", features = [ "runtime-tokio-rustls", "sqlite", "offline"] }
+sqlx = { version = "0.6", features = [ "runtime-tokio-rustls", "sqlite", "offline"] }
 
 log = "0.4"
 simplelog = "0.12"
