@@ -2,7 +2,7 @@
 use std::sync::Arc;
 use crossbeam::channel::{Sender, TryRecvError, Receiver};
 
-use sqlx::{migrate::Migrator, SqlitePool, Sqlite};
+use sqlx::{migrate::Migrator, SqlitePool, Sqlite, ConnectOptions, sqlite::SqliteConnectOptions};
 use teloxide::types::{ChatId, UserId};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
@@ -74,7 +74,9 @@ pub async fn worker() -> (Sender<DBAction>, Vec<(i64,BulletinConfig)>, Arc<Stora
 
 
 async fn make_pool() -> SqlitePool {
-    let pool = SqlitePool::connect("sqlite://bulletin-configs.db").await.unwrap();
+    let mut options = SqliteConnectOptions::new().filename("bulletin-configs.db");
+    options.disable_statement_logging();
+    let pool = SqlitePool::connect_with(options).await.unwrap();
     MIGRATOR.run(&pool).await.unwrap();
     pool
 }
