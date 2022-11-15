@@ -6,9 +6,7 @@ use super::res::*;
 use serde::{Serialize, Deserialize};
 
 use teloxide::dispatching::dialogue::GetChatId;
-use teloxide::types::{UserId, Update, ChatId, UpdateKind, MessageKind, MediaKind, MediaText, MessageCommon};
-
-type MessageId = i32;
+use teloxide::types::{UserId, Update, ChatId, UpdateKind, MessageKind, MediaKind, MediaText, MessageCommon, MessageId};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum CallbackResponse {
@@ -18,7 +16,7 @@ pub enum CallbackResponse {
     No,
     Target(Target),
     User(UserId),
-    Remove(Vec<MessageId>),
+    Remove(Vec<i32>),
     AdminToRemove(UserId),
     AddTag(String, i32),
     RemoveTag(String, i32),
@@ -73,7 +71,7 @@ pub enum UserAction {
     Publish,
     Yes,
     No,
-    Remove(Vec<MessageId>),
+    Remove(Vec<i32>),
     AddTag(String, i32),
     RemoveTag(String, i32),
 }
@@ -239,7 +237,7 @@ pub fn media_to_content(media: MediaKind) -> Option<Content> {
     let content = match media {
         MediaKind::Photo(mut photo) => {
             photo.photo.sort_unstable_by_key(|size|size.height);
-            let best_size = photo.photo.last()?.file_id.clone();
+            let best_size = photo.photo.last()?.file.id.clone();
             let entities = photo.caption_entities;
             match photo.caption {
                 Some(text) => Content::TextAndPhoto(MediaText { text, entities }, best_size),
@@ -276,7 +274,7 @@ pub fn invoke_author(content: &Content) -> Option<UserId> {
 
 #[derive(Clone, Debug)]
 pub struct GroupMessage {
-    pub id: i32,
+    pub id: MessageId,
     pub chat_id: ChatId,
     pub sender_chat_id: Option<ChatId>,
     pub url: String,
@@ -305,7 +303,7 @@ impl GroupMessage {
             let sender_chat_id = sender_chat.map(|chat|chat.id);
             let author = from?.id;
             let kind = if let Some(reply_to_message) = reply_to_message {
-                let thread = reply_to_message.id;
+                let thread = reply_to_message.id.0;
                 let content = media_to_content(media_kind)?;
                 if let MessageKind::Common(MessageCommon{from, media_kind, ..}) = reply_to_message.kind {
                     let replied_author = from?.id;

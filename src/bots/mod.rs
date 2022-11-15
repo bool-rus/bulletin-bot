@@ -6,7 +6,7 @@ pub mod father;
 
 type DBStorage = std::sync::Arc<crate::persistent::Storage>;
 
-type WrappedBot = AutoSend<Bot>;
+type WrappedBot = Bot;
 
 fn make_username(user: &teloxide::types::User) -> String {
     let name = user.first_name.as_str();

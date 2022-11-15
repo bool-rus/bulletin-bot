@@ -6,7 +6,7 @@ use teloxide::{types::BotCommand, dispatching::ShutdownToken};
 
 pub fn start(config: Config) -> ShutdownToken {
     let config = Arc::new(config);
-    let bot = Bot::new(config.token.as_str()).auto_send();
+    let bot = Bot::new(config.token.as_str());
     let storage = MyStorage::new();
     let mut dispatcher = Dispatcher::builder(bot.clone(), fsm::make_dialogue_handler())
         .dependencies(dptree::deps![storage, config.clone()])

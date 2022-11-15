@@ -24,7 +24,7 @@ const CHOOSE_THE_BOT: &str = "Выбери бота:";
 const INVALID_TOKEN: &str = "Неверный токен. Попробуй другой";
 
 #[derive(BotCommands, Clone)]
-#[command(rename = "lowercase", description = "These commands are supported:")]
+#[command(rename_rule = "lowercase", description = "These commands are supported:")]
 enum Command {
     #[command(description = "помощь")]
     Help,

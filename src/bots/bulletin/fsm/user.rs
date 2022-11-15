@@ -1,7 +1,6 @@
-use std::iter::empty;
-
 use super::*;
 use config::Template as Tpl;
+use teloxide::types::MessageId;
 
 const LINE_SIZE: usize = 3;
 
@@ -27,7 +26,7 @@ async fn on_price_waiting(
         let ad = Ad::new(target, price);
         let msg = bot.send_message(dialogue.chat_id(), conf.template(Tpl::FillRequest)).await?;
         bot.edit_message_reply_markup(dialogue.chat_id(), msg.id)
-            .reply_markup(tags_markup(&ad, conf.tags.as_slice(), msg.id)).await?;
+            .reply_markup(tags_markup(&ad, conf.tags.as_slice(), msg.id.0)).await?;
         dialogue.update(State::Filling(ad)).await?;
     } else {
         bot.send_message(dialogue.chat_id(), conf.template(Tpl::NotAPrice)).await?;
@@ -115,7 +114,7 @@ async fn on_user_action(
         UserAction::Yes => if let State::Preview(ad) = dialogue.get_or_default().await? {
             let msgs: Vec<_> = send_ad(bot.clone(), conf.clone(), conf.channel, user_id, &ad).await?;
             dialogue.exit().await?;
-            let ids: Vec<_> = msgs.iter().map(|m|m.id).collect();
+            let ids: Vec<_> = msgs.iter().map(|m|m.id.0).collect();
             let data = CallbackResponse::Remove(ids).to_string()?;
             let msg = msgs.first().ok_or("Published msgs is empty".to_owned())?;
             let url = msg.url().map(|u|u.to_string()).unwrap_or_default();
@@ -150,7 +149,7 @@ async fn on_user_action(
                     let ad = Ad::new(target, 0);
                     let msg = bot.send_message(dialogue.chat_id(), conf.template(Tpl::FillRequest)).await?;
                     bot.edit_message_reply_markup(dialogue.chat_id(), msg.id)
-                        .reply_markup(tags_markup(&ad, &conf.tags, msg.id)).await?;
+                        .reply_markup(tags_markup(&ad, &conf.tags, msg.id.0)).await?;
                     dialogue.update(State::Filling(ad)).await?;
                 }
                 target => {
@@ -163,13 +162,13 @@ async fn on_user_action(
             ad.tags.insert(tag);
             let markup = tags_markup(&ad, &conf.tags, message_id);
             dialogue.update(State::Filling(ad)).await?;
-            bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup).await?;
+            bot.edit_message_reply_markup(dialogue.chat_id(), MessageId(message_id)).reply_markup(markup).await?;
         },
         UserAction::RemoveTag(tag, message_id) => if let State::Filling(mut ad) = dialogue.get_or_default().await? {
             ad.tags.remove(&tag);
             let markup = tags_markup(&ad, &conf.tags, message_id);
             dialogue.update(State::Filling(ad)).await?;
-            bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup).await?;
+            bot.edit_message_reply_markup(dialogue.chat_id(), MessageId(message_id)).reply_markup(markup).await?;
         },
     }
     Ok(())
@@ -177,7 +176,7 @@ async fn on_user_action(
 
 async fn delete_msgs(bot: &WBot, ids: Vec<i32>, conf: &Conf) -> FSMResult {
     for id in ids {
-        bot.delete_message(conf.channel, id).await?;
+        bot.delete_message(conf.channel, MessageId(id)).await?;
     }
     Ok(())
 }
