@@ -190,7 +190,11 @@ async fn on_publish(
     let user_id = UserId(u64::try_from(chat_id.0)?);
     match dialogue.get().await?.unwrap_or_default() {
         State::Filling(ad) => {
-            send_ad(bot.clone(), conf.clone(), chat_id, user_id, &ad).await?;
+            if let Err(e) = send_ad(bot.clone(), conf.clone(), chat_id, user_id, &ad).await {
+                log::error!("some err on crate ad: {:?}", e);
+                bot.send_message(chat_id, format!("Упс, что-то пошло не так: {}", e)).await?;
+                return Err(e)
+            }
             bot.send_message(chat_id, conf.template(Tpl::IsAllCorrect))
             .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
                 InlineKeyboardButton::callback("Да".to_owned(), CallbackResponse::Yes.to_string()?),
