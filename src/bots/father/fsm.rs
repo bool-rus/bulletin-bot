@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use teloxide::RequestError;
 use teloxide::types::{MessageKind, ForwardedFrom, BotCommand, Me, InlineKeyboardMarkup};
 use teloxide::dispatching::UpdateFilterExt;
@@ -322,7 +321,7 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
                     dialogue.exit().await?;
                     bot.send_message(dialogue.chat_id(), "Бот запущен").reply_markup(
                         teloxide::types::InlineKeyboardMarkup::default()
-                        .append_row(vec![InlineKeyboardButton::url("На чай разработчику", "https://pay.mysbertips.ru/93867309".try_into().unwrap())])
+                        .append_row(vec![CONF.tip_button()])
                     ).await?;
                     return Ok(())
                 }

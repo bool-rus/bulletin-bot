@@ -1,16 +1,12 @@
-
-use std::sync::Arc;
-
 use super::*;
+
 mod fsm;
 mod entity;
 
-use crate::{impls::LoggableErrorResult, StartedBots};
-use super::DBStorage;
 type MyStorage = teloxide::dispatching::dialogue::InMemStorage<fsm::State>;
 
-pub fn start(token: String, sender: Sender<DBAction>, db: DBStorage, started_bots: StartedBots) -> tokio::task::JoinHandle<()> {
-    let bot = Bot::new(token.as_str());
+pub fn start(sender: Sender<DBAction>, db: DBStorage, started_bots: StartedBots) -> tokio::task::JoinHandle<()> {
+    let bot = Bot::new(CONF.token.as_str());
     let mut dispatcher = Dispatcher::builder(bot.clone(), fsm::make_dialogue_handler())
     .dependencies(dptree::deps![MyStorage::new(), Arc::new(sender), db, started_bots.clone()])
     .enable_ctrlc_handler()

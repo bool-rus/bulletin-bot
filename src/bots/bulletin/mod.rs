@@ -1,4 +1,4 @@
-use teloxide::prelude::*;
+use super::*;
 use super::WrappedBot as WBot;
 use entity::*;
 use ad::Ad;

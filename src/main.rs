@@ -1,36 +1,41 @@
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
+use clap::{Parser, command};
+use static_init::dynamic;
 
-use impls::LoggableErrorResult;
-use persistent::DBAction::AddListener;
-use teloxide::dispatching::ShutdownToken;
 
 mod impls;
 mod bots;
 mod persistent;
-type StartedBots = Arc<Mutex<HashMap<i64, ShutdownToken>>>;
+
+#[dynamic]
+pub static CONF: GlobalConfig = GlobalConfig::parse();
 
 #[tokio::main]
 async fn main() {
     init_logger();
-    let (sender, configs, storage) = persistent::worker().await;
-    let started_bots = configs.into_iter().fold(HashMap::new(),|mut map, (id, conf)|{
-        let conf: bots::bulletin::Config = conf.into();
-        let receiver = conf.receiver.clone();
-        map.insert(id, bots::bulletin::start(conf));
-        sender.send(AddListener(id, receiver)).unwrap();
-        map
-    });
-    bots::father::start(
-        std::env::var("TELEGRAM_BOT_TOKEN").expect("need to set env variable TELEGRAM_BOT_TOKEN"), 
-        sender,
-        storage.clone(),
-        Arc::new(Mutex::new(started_bots))
-    ).await.ok_or_log();
-    storage.close().await;
+    bots::start().await;
 }
 
 fn init_logger() {
     use simplelog::*;
-    TermLogger::init(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto).unwrap();
+    let mut builder = ConfigBuilder::new();
+    builder.set_time_level(LevelFilter::Off);
+    TermLogger::init(LevelFilter::Info, builder.build(), TerminalMode::Mixed, ColorChoice::Auto).unwrap();
+    log::info!("config: {:?}", &CONF.admin);
+}
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+pub struct GlobalConfig {
+    ///token of father bot 
+    #[arg(long, short, env="TELEGRAM_BOT_TOKEN", hide_env_values=true)]
+    pub token: String,
+    ///id of global admin
+    #[arg(long, short, env="BOT_ADMIN")]
+    admin: u64,
+    ///tip url
+    #[arg(long, env="TIP_URL")]
+    pub tip_url: String,
+    ///path to db file
+    #[arg(long="db", default_value="bulletin-configs.db")]
+    db_path: String,
 }
