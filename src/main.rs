@@ -7,6 +7,7 @@ mod bots;
 mod persistent;
 
 #[dynamic]
+#[cfg(not(test))]
 pub static CONF: GlobalConfig = GlobalConfig::parse();
 
 #[tokio::main]
@@ -39,3 +40,12 @@ pub struct GlobalConfig {
     #[arg(long="db", default_value="bulletin-configs.db")]
     db_path: String,
 }
+
+#[dynamic]
+#[cfg(test)]
+pub static CONF: GlobalConfig = GlobalConfig {
+    token: "test".to_string(),
+    admin: 0,
+    tip_url: "https://example.com".to_string(),
+    db_path: "test.db".to_string(),
+};
