@@ -92,6 +92,7 @@ fn markup_edit_bot() -> InlineKeyboardMarkup {
         vec![callback("Добавить тег",       AddTag.to_string().unwrap()         )],
         vec![callback("Удалить тег",        RemoveTag.to_string().unwrap()      )],
         vec![callback("Обновить токен",     UpdateToken.to_string().unwrap()    )],
+        vec![CONF.tip_button()],
     ])
 }
 

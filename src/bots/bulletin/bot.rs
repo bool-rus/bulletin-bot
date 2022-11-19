@@ -16,7 +16,7 @@ pub fn start(config: Config) -> ShutdownToken {
 
         let me = bot.get_me().await.ok_or_log();
         let channel = bot.get_chat(config.channel).await.ok_or_log();
-        match (me, channel) {
+        let bot_username = match (me, channel) {
             (Some(me), Some(channel)) => {
                 channel.title().map(|title|{
                     config.sender.send(crate::persistent::DBAction::SetInfo {
@@ -24,9 +24,13 @@ pub fn start(config: Config) -> ShutdownToken {
                         channel_name: title.to_string(),
                     }).ok_or_log();
                 });
+                me.username().to_string()
             },
-            _ => log::error!("Cannot invoke bot/channel name")
-        }
+            _ => {
+                log::error!("Cannot invoke bot/channel name");
+                return
+            }
+        };
 
         let set_cmd = bot.set_my_commands([
             BotCommand::new("/help", "Помощь"), 
@@ -37,6 +41,7 @@ pub fn start(config: Config) -> ShutdownToken {
             log::error!("Error on bot starting: {:?}", e);
             return
         }
+        log::info!("Bot @{} started!", bot_username);
         dispatcher.dispatch().await;
     });
     token
