@@ -1,0 +1,247 @@
+{
+  "db": "SQLite",
+  "0fbe53a461600adc23fee753657ea182702cc39d0e4e64e6c32a359a97a597ce": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "insert into tags (bot_id, name) values (?1, ?2)"
+  },
+  "1af64fe79ffff017999b768053c48820681c13ec2681c75402ec6d36e81b8acf": {
+    "describe": {
+      "columns": [
+        {
+          "name": "text_id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "text",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select text_id, text from bot_template where bot_id=?1"
+  },
+  "1eb5b780ded996bb43dd041cbe19f4015f2d06dc73d2e98246bc542f12a50c4c": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "delete from bot_admins where bot_id = ?1 and user = ?2"
+  },
+  "2b92cca7c070c1217147feb3e44536f5167b9ae435c985185015943537d9cbdc": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "insert into bot_template (bot_id, text_id, text) values (?1, ?2, ?3)"
+  },
+  "3b3877acebdc774839c9e120c90bd76a94ba7acbbdc87c630a57598321722b79": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "username",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select user, username from bot_admins where bot_id=?1"
+  },
+  "66d414efe3fb304226b100e9f6d98fb86dd8684cd2abe8ac57b2d4abf3146bdb": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "insert into bots (token, channel) values (?1, ?2)"
+  },
+  "699bc752e15080f793eb176374f181229fe2d4db6293504c38ff78c9912c9cad": {
+    "describe": {
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select name from tags where bot_id = ?1"
+  },
+  "731a8a53735a9f768547dcf3f510314b799ba15c302418bd25deb50a3f668059": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "delete from tags where bot_id = ?1 and name = ?2"
+  },
+  "7fd08d66434923847e980619868ded5f48a6dd8e316a03eec639278d3eeddffd": {
+    "describe": {
+      "columns": [
+        {
+          "name": "token",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "channel",
+          "ordinal": 1,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select token, channel from bots where id=?1"
+  },
+  "88d588dd1bdf56d9e312248e27a3d4a4281905cc898345b1bad910bc08928afc": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "delete from bots where id=?1"
+  },
+  "92c50edddb3e981caa071f1ef5a9adfb937213910c51e370d535e8547c278463": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "insert or replace into bot_info (bot_id, username, channel_name) values (?1, ?2, ?3)"
+  },
+  "b40ff7d3004ad99b4d199ec575ecda3f93e735bd667d5f7141fad802385c376e": {
+    "describe": {
+      "columns": [
+        {
+          "name": "id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "token",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "channel",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "select * from bots"
+  },
+  "bd6e8bdeb2803d792ac71ca061c29ce79da130ac3dfebadd8e0522a4e847c4f1": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "update bots set token = ?1 where id = ?2"
+  },
+  "c3869a9aa3a5cc48558f84bbc0f8de64431f7eb1d13d816ed6c786918525cbc4": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "insert into bot_admins values (?1, ?2, ?3)"
+  },
+  "e502cd4b6ca50e373ec42cdbe706a1ccd18dc8bf235e5621aed07e9a592039bc": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "delete from bot_template where bot_id=?1 and text_id=?2"
+  },
+  "e739f377e50d5f577f143400975ba0e68289e4e74dc3b8fd85b5668d6e5384b2": {
+    "describe": {
+      "columns": [
+        {
+          "name": "bot_id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "username",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select i.bot_id, i.username from bot_info as i join bot_admins as a on i.bot_id=a.bot_id where a.user=?1"
+  }
+}
