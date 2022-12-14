@@ -51,3 +51,14 @@ impl GlobalConfig {
         InlineKeyboardButton::url("На чай разработчику", self.tip_url.as_str().try_into().unwrap())
     }
 }
+
+trait GetUserId {
+    fn user_id(&self) -> UserId;
+}
+
+impl<D,S> GetUserId for Dialogue<D,S> where D: Send + 'static, S: teloxide::dispatching::dialogue::Storage<D> + ?Sized,{
+    fn user_id(&self) -> UserId {
+        let primitive = self.chat_id().0;
+        UserId(primitive as u64)
+    }
+}

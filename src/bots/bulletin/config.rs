@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
+use super::CONF;
 
 use strum::EnumCount;
 use teloxide::types::{UserId, ChatId, KeyboardButton, ReplyMarkup};
@@ -54,7 +55,11 @@ impl Config {
         self.banned.lock().unwrap().get(user_id).cloned()
     }
     pub fn is_admin(&self, user_id: &UserId) -> bool {
-        self.admins.lock().unwrap().contains_key(user_id)
+        if CONF.is_global_admin(*user_id) {
+            true
+        } else {
+            self.admins.lock().unwrap().contains_key(user_id)
+        }
     }
     pub fn template(&self, template: Template) -> &str {
         self.templates[template as usize].as_str()

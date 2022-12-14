@@ -33,10 +33,13 @@ enum Command {
     MyBots,
     #[command(description = "удалить бота")]
     Delete,
+    //Теперь команды для гобального админа
+    #[command(description = "уведомить пользователей о новых фичах")]
+    PublishInfo(String),
 }
 
 pub fn bot_commands() -> Vec<BotCommand> {
-    Command::bot_commands()
+    Command::bot_commands().into_iter().take(4).collect()
 }
 
 use crate::persistent::BulletinConfig; //TODO: надо разобраться с наименованиями
@@ -287,6 +290,12 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
             let markup = InlineKeyboardMarkup::new(buttons);
             bot.send_message(dialogue.chat_id(), "Выбери бота для удаления").reply_markup(markup).await.unwrap();
         }
+        Command::PublishInfo(text) => if CONF.is_global_admin(dialogue.user_id()) {
+            for user_id in db.all_admins().await {
+                bot.send_message(user_id, &text).await.ok_or_log();
+            }
+            bot.send_message(dialogue.chat_id(), "Уведомление разослано").await?;
+        },
     }
     Ok(())
 }
