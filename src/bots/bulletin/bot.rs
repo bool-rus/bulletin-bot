@@ -14,23 +14,16 @@ pub fn start(config: Config) -> ShutdownToken {
     let token = dispatcher.shutdown_token();
     tokio::spawn(async move {
 
-        let me = bot.get_me().await.ok_or_log();
-        let channel = bot.get_chat(config.channel).await.ok_or_log();
-        let bot_username = match (me, channel) {
-            (Some(me), Some(channel)) => {
-                channel.title().map(|title|{
-                    config.sender.send(crate::persistent::DBAction::SetInfo {
-                        name: me.username().to_string(), 
-                        channel_name: title.to_string(),
-                    }).ok_or_log();
-                });
-                me.username().to_string()
-            },
-            _ => {
-                log::error!("Cannot invoke bot/channel name");
-                return
-            }
-        };
+        let bot_username = bot.get_me().await.ok_or_log()
+            .map(|me|me.username().to_owned())
+            .unwrap_or("unknown".to_owned());
+        let channel_name = bot.get_chat(config.channel).await.ok_or_log()
+            .map(|chat|chat.title().map(ToOwned::to_owned)).flatten()
+            .unwrap_or("unknown".to_owned());
+        config.sender.send(crate::persistent::DBAction::SetInfo {
+            name: bot_username.to_owned(), 
+            channel_name,
+        }).ok_or_log();
 
         let set_cmd = bot.set_my_commands([
             BotCommand::new("/help", "Помощь"), 

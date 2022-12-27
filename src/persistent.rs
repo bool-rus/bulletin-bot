@@ -2,7 +2,7 @@
 use std::sync::Arc;
 use crossbeam::channel::{Sender, TryRecvError, Receiver};
 
-use sqlx::{migrate::Migrator, SqlitePool, Sqlite, ConnectOptions, sqlite::SqliteConnectOptions};
+use sqlx::{migrate::Migrator, SqlitePool, Sqlite, ConnectOptions, sqlite::SqliteConnectOptions, Error};
 use teloxide::types::{ChatId, UserId};
 
 static MIGRATOR: Migrator = sqlx::migrate!();
@@ -92,18 +92,18 @@ impl Storage {
         self.0.close().await;
         log::info!("database connections closed!");
     }
-    pub async fn save_config(&self, cfg: BulletinConfig) -> i64 {
+    pub async fn save_config(&self, cfg: BulletinConfig) -> Result<i64, Error>  {
         let token = cfg.token.clone();
         let channel = cfg.channel.0;
-        let mut conn = self.0.acquire().await.unwrap();
+        let mut conn = self.0.acquire().await?;
         let bot_id = sqlx::query!("insert into bots (token, channel) values (?1, ?2)", token, channel)
         .execute(&mut conn)
-        .await.unwrap()
+        .await?
         .last_insert_rowid();
         for (admin_id, name) in cfg.admins {
             self.add_admin(bot_id, admin_id.0 as i64, name).await;
         }
-        bot_id
+        Ok(bot_id)
     }
     async fn all_configs(&self) -> Vec<(i64, BulletinConfig)> {
         let mut conn = self.0.acquire().await.unwrap();
