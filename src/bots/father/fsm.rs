@@ -120,6 +120,13 @@ async fn markup_edit_template(bot_id: i64, db: &DBStorage) -> InlineKeyboardMark
 
 async fn on_wait_tag(bot: WBot, dialogue: MyDialogue, (bot_id, bot_name): (i64, String), db: DBStorage, msg: Message) -> FSMResult {
     let text = msg.text().ok_or("No text on wait text")?;
+    let cb = CallbackResponse::TagToRemove(text.to_owned()).to_string();
+    if let Some(err) = CallbackResponse::TagToRemove(text.to_owned()).to_string().err() {
+        log::error!("Invalid tag: {}", err);
+        bot.send_message(dialogue.chat_id(), "Такой тег не годится, нужен покороче").await?;
+        return Ok(())
+    }
+    log::info!("cb: {:?}", cb);
     dialogue.update(State::Changing(bot_id, bot_name.clone())).await?;
     db.add_tag(bot_id, text.to_string()).await;
     bot.send_message(dialogue.chat_id(), format!("Тег добавлен (для вступления в силу нужен рестарт бота)\nВыбран бот @{}\nЧто будем делать?", bot_name))

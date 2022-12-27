@@ -27,7 +27,7 @@ impl TryFrom<&str> for CallbackResponse {
 
 impl CallbackResponse {
     pub fn to_string(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let buf = postcard::to_vec::<_, 64>(&self)?;
+        let buf = postcard::to_vec::<_, 52>(&self)?;
         let encoded = base91::slice_encode(buf.as_slice());
         Ok(String::from_utf8(encoded)?)
     }
