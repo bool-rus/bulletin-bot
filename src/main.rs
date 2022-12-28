@@ -1,12 +1,11 @@
 use clap::{Parser, command};
-use static_init::dynamic;
 
 
 mod impls;
 mod bots;
 mod persistent;
 
-#[dynamic]
+#[ctor::ctor]
 #[cfg(not(test))]
 pub static CONF: GlobalConfig = GlobalConfig::parse();
 
@@ -41,7 +40,7 @@ pub struct GlobalConfig {
     db_path: String,
 }
 
-#[dynamic]
+#[ctor::ctor]
 #[cfg(test)]
 pub static CONF: GlobalConfig = GlobalConfig {
     token: "test".to_string(),
