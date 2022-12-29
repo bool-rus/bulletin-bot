@@ -44,9 +44,9 @@ fn tags_markup(ad: &Ad, tags: &[String], message_id: i32) -> InlineKeyboardMarku
     let (mut btns, line) = tags.iter().map(|name|{
         let name = name.clone();
         if ad.tags.contains(&name) {
-            InlineKeyboardButton::callback(format!("✅ {}", name), CallbackResponse::RemoveTag(name, message_id).to_string().unwrap())
+            InlineKeyboardButton::callback(format!("✅ {}", name), CallbackResponse::RemoveTag(name, message_id).to_msg_text().unwrap())
         } else {
-            InlineKeyboardButton::callback(format!("☑️ {}", name), CallbackResponse::AddTag(name, message_id).to_string().unwrap())
+            InlineKeyboardButton::callback(format!("☑️ {}", name), CallbackResponse::AddTag(name, message_id).to_msg_text().unwrap())
         }
     }).fold((Vec::new(), Vec::with_capacity(LINE_SIZE)), |(mut all, mut line), btn| {
         if line.len() < LINE_SIZE {
@@ -101,12 +101,12 @@ async fn on_user_action(
             bot.send_message(chat_id, conf.template(Tpl::RequestTarget))
             .reply_markup(InlineKeyboardMarkup::new( vec![
                 vec![
-                    callback("купить", CallbackResponse::Target(Target::Buy).to_string().unwrap()),
-                    callback("продать", CallbackResponse::Target(Target::Sell).to_string().unwrap()),
+                    callback("купить", CallbackResponse::Target(Target::Buy).to_msg_text().unwrap()),
+                    callback("продать", CallbackResponse::Target(Target::Sell).to_msg_text().unwrap()),
                 ],
                 vec![
-                    callback("спросить", CallbackResponse::Target(Target::Ask).to_string().unwrap()),
-                    callback("рекомендовать", CallbackResponse::Target(Target::Recommend).to_string().unwrap()),
+                    callback("спросить", CallbackResponse::Target(Target::Ask).to_msg_text().unwrap()),
+                    callback("рекомендовать", CallbackResponse::Target(Target::Recommend).to_msg_text().unwrap()),
                 ]
             ])).await?;
         },
@@ -115,7 +115,7 @@ async fn on_user_action(
             let msgs: Vec<_> = send_ad(bot.clone(), conf.clone(), conf.channel, user_id, &ad).await?;
             dialogue.exit().await?;
             let ids: Vec<_> = msgs.iter().map(|m|m.id.0).collect();
-            let data = CallbackResponse::Remove(ids).to_string()?;
+            let data = CallbackResponse::Remove(ids).to_msg_text()?;
             let msg = msgs.first().ok_or("Published msgs is empty".to_owned())?;
             let url = msg.url().map(|u|u.to_string()).unwrap_or_default();
             let text = impls::make_message_link(conf.template(Tpl::Published), &url, None)
@@ -197,8 +197,8 @@ async fn on_publish(
             }
             bot.send_message(chat_id, conf.template(Tpl::IsAllCorrect))
             .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
-                InlineKeyboardButton::callback("Да".to_owned(), CallbackResponse::Yes.to_string()?),
-                InlineKeyboardButton::callback("Нет".to_owned(), CallbackResponse::No.to_string()?),
+                InlineKeyboardButton::callback("Да".to_owned(), CallbackResponse::Yes.to_msg_text()?),
+                InlineKeyboardButton::callback("Нет".to_owned(), CallbackResponse::No.to_msg_text()?),
             ])).await?;
             dialogue.update(State::Preview(ad)).await?;
         },

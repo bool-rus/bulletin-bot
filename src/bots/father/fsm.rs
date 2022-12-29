@@ -82,7 +82,7 @@ pub fn make_dialogue_handler() -> FSMHandler {
 
 fn markup_load() -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new(vec![
-        vec![InlineKeyboardButton::callback("...", CallbackResponse::Nothing.to_string().unwrap())]
+        vec![InlineKeyboardButton::callback("...", CallbackResponse::Nothing.to_msg_text().unwrap())]
     ])
 }
 
@@ -90,11 +90,11 @@ fn markup_edit_bot() -> InlineKeyboardMarkup {
     use CallbackResponse::*;
     let callback = InlineKeyboardButton::callback;
     InlineKeyboardMarkup::new(vec![
-        vec![callback("Перезапустить",      Restart.to_string().unwrap()        )],
-        vec![callback("Изменить тексты",    EditTemplates.to_string().unwrap()  )],
-        vec![callback("Добавить тег",       AddTag.to_string().unwrap()         )],
-        vec![callback("Удалить тег",        RemoveTag.to_string().unwrap()      )],
-        vec![callback("Обновить токен",     UpdateToken.to_string().unwrap()    )],
+        vec![callback("Перезапустить",      Restart.to_msg_text().unwrap()        )],
+        vec![callback("Изменить тексты",    EditTemplates.to_msg_text().unwrap()  )],
+        vec![callback("Добавить тег",       AddTag.to_msg_text().unwrap()         )],
+        vec![callback("Удалить тег",        RemoveTag.to_msg_text().unwrap()      )],
+        vec![callback("Обновить токен",     UpdateToken.to_msg_text().unwrap()    )],
         vec![CONF.tip_button()],
     ])
 }
@@ -112,7 +112,7 @@ async fn markup_edit_template(bot_id: i64, db: &DBStorage) -> InlineKeyboardMark
     let overrides = db.get_templates(bot_id).await;
     let btns: Vec<_> = Template::create(overrides).into_iter().enumerate().map(|(i, text)|{
         vec![
-            InlineKeyboardButton::callback(text, CallbackResponse::EditTemplate(i).to_string().unwrap()),
+            InlineKeyboardButton::callback(text, CallbackResponse::EditTemplate(i).to_msg_text().unwrap()),
         ]
     }).collect();
     InlineKeyboardMarkup::new(btns)
@@ -120,8 +120,8 @@ async fn markup_edit_template(bot_id: i64, db: &DBStorage) -> InlineKeyboardMark
 
 async fn on_wait_tag(bot: WBot, dialogue: MyDialogue, (bot_id, bot_name): (i64, String), db: DBStorage, msg: Message) -> FSMResult {
     let text = msg.text().ok_or("No text on wait text")?;
-    let cb = CallbackResponse::TagToRemove(text.to_owned()).to_string();
-    if let Some(err) = CallbackResponse::TagToRemove(text.to_owned()).to_string().err() {
+    let cb = CallbackResponse::TagToRemove(text.to_owned()).to_msg_text();
+    if let Some(err) = CallbackResponse::TagToRemove(text.to_owned()).to_msg_text().err() {
         log::error!("Invalid tag: {}", err);
         bot.send_message(dialogue.chat_id(), "Такой тег не годится, нужен покороче").await?;
         return Ok(())
@@ -169,7 +169,7 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
     use CallbackResponse::*;
     let data = callback.data.as_ref().ok_or("cannot invoke data from callback")?;
     let message_id = callback.message.ok_or("cannot invoke message_id from callback")?.id;
-    match CallbackResponse::try_from(data.as_str())? {
+    match CallbackResponse::from_mst_text(data.as_str())? {
         Restart => {
             bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_load()).await?;
             stop_bot(started_bots.clone(), bot_id).await;
@@ -195,7 +195,7 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
             bot.edit_message_text(dialogue.chat_id(), message_id, 
                 format!("Меняем текстовку для @{} (Просто присылай нужную)\nСейчас она выглядит так:\n\n{}", bot_name, text))
                 .reply_markup(InlineKeyboardMarkup::new(vec![vec![
-                    InlineKeyboardButton::callback("Сбросить", ResetTemplate.to_string().unwrap())
+                    InlineKeyboardButton::callback("Сбросить", ResetTemplate.to_msg_text().unwrap())
                 ]])).await?;
         },
         UpdateToken => {
@@ -208,7 +208,7 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
         },
         RemoveTag => {
             let markup: Vec<_> = db.get_tags(bot_id).await.into_iter().map(|name|{
-                vec![InlineKeyboardButton::callback(name.clone(), TagToRemove(name).to_string().unwrap())]
+                vec![InlineKeyboardButton::callback(name.clone(), TagToRemove(name).to_msg_text().unwrap())]
             }).collect();
             bot.edit_message_text(dialogue.chat_id(), message_id, "Выбери тег для удаления")
                 .reply_markup(InlineKeyboardMarkup::new(markup)).await?;
@@ -232,7 +232,7 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
     use CallbackResponse::*;
     let data = callback.data.as_ref().ok_or("cannot invoke data from callback")?;
     let message_id = callback.message.ok_or("cannot invoke message_id from callback")?.id;
-    match CallbackResponse::try_from(data.as_str())? {
+    match CallbackResponse::from_mst_text(data.as_str())? {
         Select(id, name) =>  {
             dialogue.update(State::Changing(id, name.clone())).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Выбран бот @{}\nЧто будем делать?", name))
@@ -278,7 +278,7 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
             let buttons: Vec<_> = {
                 let mut buttons = Vec::with_capacity(bots.len());
                 for (id, name) in bots {
-                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Select(id, name).to_string()?)])
+                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Select(id, name).to_msg_text()?)])
                 }
                 buttons
             };
@@ -290,7 +290,7 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
             let buttons: Vec<_> = {
                 let mut buttons = Vec::with_capacity(bots.len());
                 for (id, name) in bots {
-                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Remove(id, name).to_string()?)])
+                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Remove(id, name).to_msg_text()?)])
                 }
                 buttons
             };

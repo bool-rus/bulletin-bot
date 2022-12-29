@@ -1,6 +1,5 @@
 use std::sync::{Mutex, Arc};
 use std::collections::HashMap;
-
 use teloxide::dispatching::ShutdownToken;
 use teloxide::prelude::*;
 use teloxide::types::{InlineKeyboardButton, UserId};
@@ -60,5 +59,20 @@ impl<D,S> GetUserId for Dialogue<D,S> where D: Send + 'static, S: teloxide::disp
     fn user_id(&self) -> UserId {
         let primitive = self.chat_id().0;
         UserId(primitive as u64)
+    }
+}
+type DynError = Box<dyn std::error::Error + Send + Sync>;
+
+trait CallbackMessage : Sized + serde::Serialize + serde::de::DeserializeOwned {
+    fn from_mst_text(s: &str) -> Result<Self, DynError> {
+        let bytes = base91::slice_decode(s.as_bytes());
+        postcard::from_bytes(bytes.as_slice()).map_err(Into::into)
+    }
+    fn to_msg_text(&self) -> Result<String, DynError> {
+        //максимальная длина сообщения в Telegram - 64 байта. base91 увеличивает объем на 23% 
+        //следовательно, получаем ограничение на 52 байта исходных данных
+        let buf = postcard::to_vec::<_, 52>(&self)?;
+        let encoded = base91::slice_encode(buf.as_slice());
+        String::from_utf8(encoded).map_err(Into::into)
     }
 }

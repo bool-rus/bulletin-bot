@@ -22,22 +22,8 @@ pub enum CallbackResponse {
     RemoveTag(String, i32),
 }
 
-impl TryFrom<&str> for CallbackResponse {
-    type Error = Box<dyn std::error::Error + Send + Sync>;
+impl CallbackMessage for CallbackResponse {}
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let bytes = base91::slice_decode(value.as_bytes());
-        postcard::from_bytes::<CallbackResponse>(bytes.as_slice()).map_err(|e|e.into())
-    }
-}
-
-impl CallbackResponse {
-    pub fn to_string(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let buf = postcard::to_vec::<_, 64>(&self)?;
-        let encoded = base91::slice_encode(buf.as_slice());
-        Ok(String::from_utf8(encoded)?)
-    }
-}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum Target {
@@ -119,7 +105,7 @@ impl Signal {
             UpdateKind::CallbackQuery(q) => {
                 let chat_id = q.chat_id()?;
                 let data = q.data?;
-                match CallbackResponse::try_from(data.as_str()) {
+                match CallbackResponse::from_mst_text(data.as_str()) {
                     Ok(response) => Some(Signal{chat_id, kind: response.into()}),
                     Err(e) => {
                         log::error!("cannot parse callback data: {} error: {:?}", data, e);

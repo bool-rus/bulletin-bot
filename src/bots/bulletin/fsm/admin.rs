@@ -32,7 +32,7 @@ async fn on_action(
                 .ok().map( |u|format!("{} {}", u.user.first_name, u.user.last_name.unwrap_or_default() ))
                 .unwrap_or(format!("[{}]", user_id));
                 let text = format!("{} ({})", name, cause);
-                let data = CallbackResponse::User(user_id).to_string()?;
+                let data = CallbackResponse::User(user_id).to_msg_text()?;
                 markup = markup.append_row(vec![InlineKeyboardButton::callback(text, data)]);
             }
             bot.send_message(dialogue.chat_id(), "Выбери, кого амнистировать").reply_markup(markup).await?;
@@ -51,7 +51,7 @@ async fn on_action(
             let markup = InlineKeyboardMarkup::default().inline_keyboard(conf.admins().into_iter()
                 .map(|(id, name)|InlineKeyboardButton::callback(
                     name, 
-                    CallbackResponse::AdminToRemove(id).to_string().unwrap())
+                    CallbackResponse::AdminToRemove(id).to_msg_text().unwrap())
                 )
                 .map(|btn|vec![btn])
             );
