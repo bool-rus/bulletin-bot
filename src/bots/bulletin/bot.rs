@@ -2,7 +2,7 @@ use std::sync::Arc;
 use crate::impls::LoggableErrorResult;
 
 use super::*;
-use teloxide::{types::BotCommand, dispatching::ShutdownToken};
+use teloxide::{types::BotCommand, dispatching::{ShutdownToken, update_listeners::UpdateListener}, error_handlers::ErrorHandler, RequestError, stop::StopToken};
 
 pub fn start(config: Config) -> ShutdownToken {
     let config = Arc::new(config);
@@ -34,8 +34,28 @@ pub fn start(config: Config) -> ShutdownToken {
             log::error!("Error on bot starting: {:?}", e);
             return
         }
+        let mut listener = teloxide::dispatching::update_listeners::polling_default(bot.clone()).await;
+        let stop_token = listener.stop_token();
         log::info!("Bot @{} started!", bot_username);
-        dispatcher.dispatch().await;
+        dispatcher.dispatch_with_listener(
+            listener, 
+            Arc::new(StoppableErrorHandler(stop_token))
+        ).await;
     });
     token
+}
+
+struct StoppableErrorHandler(StopToken);
+
+impl ErrorHandler<RequestError> for StoppableErrorHandler  {
+    fn handle_error(self: Arc<Self>, error: RequestError) -> futures_util::future::BoxFuture<'static, ()> {
+        log::error!("{}", error.to_string());
+        if let RequestError::Api(teloxide::ApiError::Unknown(text)) = error {
+            if text.to_lowercase() == "unauthorized" {
+                self.0.stop();
+                log::info!("Bot stopped");
+            }
+        }
+        Box::pin(async {})
+    }
 }
