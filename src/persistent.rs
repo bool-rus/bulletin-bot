@@ -129,6 +129,12 @@ impl Storage {
         sqlx::query!("delete from bot_admins where bot_id = ?1 and user = ?2", bot_id, admin_id)
         .execute(&mut conn).await.unwrap();
     }
+    pub async fn get_info(&self, bot_id: i64) -> Option<(String, String)> {
+        let mut conn = self.0.acquire().await.unwrap();
+        sqlx::query!("select username, channel_name from bot_info where bot_id=?1", bot_id)
+            .fetch_optional(&mut conn).await.unwrap()
+            .map(|r|(r.username, r.channel_name))
+    }
     async fn set_info(&self, bot_id: i64, name: String, channel_name: String) {
         let mut conn = self.0.acquire().await.unwrap();
         sqlx::query!(

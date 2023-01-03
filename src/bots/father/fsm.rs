@@ -251,12 +251,14 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
     let data = callback.data.as_ref().ok_or(anyhow!("cannot invoke data from callback"))?;
     let message_id = callback.message.ok_or(anyhow!("cannot invoke message_id from callback"))?.id;
     match CallbackResponse::from_mst_text(data.as_str())? {
-        Select(id, name) =>  {
+        Select(id) =>  {
+            let (name,_) = db.get_info(id).await.ok_or(anyhow!("cannot invoke bot_info for id {id}"))?;
             dialogue.update(State::Changing(id, name.clone())).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Выбран бот @{}\nЧто будем делать?", name))
                 .reply_markup(markup_edit_bot()).await?;
         },
-        Remove(id, name) => {
+        Remove(id) => {
+            let (name,_) = db.get_info(id).await.unwrap_or_default();
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Удаляю бота @{}", name)).await?;
             stop_bot(started_bots, id).await;
             db.delete_config(id).await;
@@ -309,7 +311,7 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
             let buttons: Vec<_> = {
                 let mut buttons = Vec::with_capacity(bots.len());
                 for (id, name) in bots {
-                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Select(id, name).to_msg_text()?)])
+                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Select(id).to_msg_text()?)])
                 }
                 buttons
             };
@@ -321,7 +323,7 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
             let buttons: Vec<_> = {
                 let mut buttons = Vec::with_capacity(bots.len());
                 for (id, name) in bots {
-                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Remove(id, name).to_msg_text()?)])
+                    buttons.push(vec![InlineKeyboardButton::callback(name.clone(), CallbackResponse::Remove(id).to_msg_text()?)])
                 }
                 buttons
             };

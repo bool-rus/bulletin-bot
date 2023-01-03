@@ -261,5 +261,29 @@
       }
     },
     "query": "select i.bot_id, i.username from bot_info as i join bot_admins as a on i.bot_id=a.bot_id where a.user=?1"
+  },
+  "fa488f7f1c3da5677ff521a4d882fccb708dfd9ee777795ba35259b2bebd0001": {
+    "describe": {
+      "columns": [
+        {
+          "name": "username",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "channel_name",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select username, channel_name from bot_info where bot_id=?1"
   }
 }

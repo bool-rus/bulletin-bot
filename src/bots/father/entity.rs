@@ -4,10 +4,10 @@ use crate::bots::CallbackMessage;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 pub enum CallbackResponse {
-    Select(i64, String),
+    Select(i64),
     Restart,
     Nothing,
-    Remove(i64, String),
+    Remove(i64),
     EditTemplates,
     EditTemplate(usize),
     ResetTemplate,
