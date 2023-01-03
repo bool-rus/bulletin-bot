@@ -26,3 +26,4 @@ base91 = "0.1"
 futures-util = "0.3"
 clap = { version = "4.0.26", features = ["derive", "env"] }
 ctor = "0.1.26"
+anyhow = "1.0.68"

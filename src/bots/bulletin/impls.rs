@@ -36,12 +36,12 @@ pub fn make_message_link(text: &str, url: &str, thread: Option<i32>) -> Option<S
     Some(words.join(" "))
 }
 
-pub async fn send_ad(bot: WBot, conf: Conf, target_chat_id: ChatId, user_id: UserId, ad: &Ad) -> Result<Vec<Message>, Box<dyn std::error::Error + Send + Sync>> {
+pub async fn send_ad(bot: WBot, conf: Conf, target_chat_id: ChatId, user_id: UserId, ad: &Ad) -> Result<Vec<Message>> {
 
     let chat_member = bot.get_chat_member(conf.channel, user_id).await?;
     if chat_member.is_left() || chat_member.is_banned() {
         bot.send_message(target_chat_id, "Ты не с нами. Уходи").await?;
-        Err("Пользователь не подписан на канал")?
+        bail!("Пользователь не подписан на канал")
     };
     let user = chat_member.user;
     let text = make_ad_text(&user, ad);

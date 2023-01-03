@@ -11,6 +11,7 @@ use crate::persistent;
 use crate::persistent::DBAction;
 pub mod bulletin;
 pub mod father;
+use anyhow::{anyhow, Result, bail};
 
 type DBStorage = std::sync::Arc<crate::persistent::Storage>;
 type StartedBots = Arc<Mutex<HashMap<i64, ShutdownToken>>>;
@@ -61,14 +62,13 @@ impl<D,S> GetUserId for Dialogue<D,S> where D: Send + 'static, S: teloxide::disp
         UserId(primitive as u64)
     }
 }
-type DynError = Box<dyn std::error::Error + Send + Sync>;
 
 trait CallbackMessage : Sized + serde::Serialize + serde::de::DeserializeOwned {
-    fn from_mst_text(s: &str) -> Result<Self, DynError> {
+    fn from_mst_text(s: &str) -> Result<Self> {
         let bytes = base91::slice_decode(s.as_bytes());
         postcard::from_bytes(bytes.as_slice()).map_err(Into::into)
     }
-    fn to_msg_text(&self) -> Result<String, DynError> {
+    fn to_msg_text(&self) -> Result<String> {
         //максимальная длина сообщения в Telegram - 64 байта. base91 увеличивает объем на 23% 
         //следовательно, получаем ограничение на 52 байта исходных данных
         let buf = postcard::to_vec::<_, 52>(&self)?;

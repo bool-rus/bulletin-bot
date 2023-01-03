@@ -10,7 +10,7 @@ use super::entity::CallbackResponse;
 use crate::bots::bulletin::{Config as RunnableConfig, Template};
 
 type MyDialogue = Dialogue<State, MyStorage>;
-pub type FSMResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+pub type FSMResult = Result<()>;
 pub type FSMHandler = Handler<'static, DependencyMap, FSMResult, teloxide::dispatching::DpHandlerDescription>;
 
 const HELP: &str = "Привет! Чтобы создать бота барахолки, используй команду /newbot";
@@ -119,7 +119,7 @@ async fn markup_edit_template(bot_id: i64, db: &DBStorage) -> InlineKeyboardMark
 }
 
 async fn on_wait_tag(bot: WBot, dialogue: MyDialogue, (bot_id, bot_name): (i64, String), db: DBStorage, msg: Message) -> FSMResult {
-    let text = msg.text().ok_or("No text on wait text")?;
+    let text = msg.text().ok_or(anyhow!("No text on wait text"))?;
     let cb = CallbackResponse::TagToRemove(text.to_owned()).to_msg_text();
     if let Some(err) = CallbackResponse::TagToRemove(text.to_owned()).to_msg_text().err() {
         log::error!("Invalid tag: {}", err);
@@ -135,7 +135,7 @@ async fn on_wait_tag(bot: WBot, dialogue: MyDialogue, (bot_id, bot_name): (i64, 
 }
 
 async fn on_update_token(bot: WBot, dialogue: MyDialogue, (bot_id, bot_name): (i64, String), db: DBStorage, msg: Message) -> FSMResult {
-    let token = msg.text().ok_or("No text on wait text")?;
+    let token = msg.text().ok_or(anyhow!("No text on wait text"))?;
     db.update_token(bot_id, token.to_owned()).await;
     dialogue.update(State::Changing(bot_id, bot_name.clone())).await?;
     bot.send_message(
@@ -148,7 +148,7 @@ async fn on_update_token(bot: WBot, dialogue: MyDialogue, (bot_id, bot_name): (i
 async fn on_wait_template(bot: WBot, dialogue: MyDialogue, 
     (bot_id, name, template_id): (i64, String, usize), 
     msg: Message, db: DBStorage) -> FSMResult {
-    let text = msg.text().ok_or("No text on wait text")?;
+    let text = msg.text().ok_or(anyhow!("No text on wait text"))?;
     dialogue.update(State::Changing(bot_id, name.clone())).await?;
     db.add_template(bot_id, template_id, text.to_string()).await;
     bot.send_message(dialogue.chat_id(), format!("Текст заменен (для вступления в силу нужен рестарт бота)\nВыбран бот @{}\nЧто будем делать?", name))
@@ -167,8 +167,8 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
     sender: Arc<Sender<DBAction>>, (bot_id, bot_name): (i64, String)
 ) -> FSMResult {
     use CallbackResponse::*;
-    let data = callback.data.as_ref().ok_or("cannot invoke data from callback")?;
-    let message_id = callback.message.ok_or("cannot invoke message_id from callback")?.id;
+    let data = callback.data.as_ref().ok_or(anyhow!("cannot invoke data from callback"))?;
+    let message_id = callback.message.ok_or(anyhow!("cannot invoke message_id from callback"))?.id;
     match CallbackResponse::from_mst_text(data.as_str())? {
         Restart => {
             bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_load()).await?;
@@ -189,7 +189,7 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
             dialogue.update(State::WaitText(bot_id, bot_name.clone(), template_id)).await?;
             let templates = Template::create(db.get_templates(bot_id).await);
             if template_id >= templates.len() {
-                Err("template_id more than templates count")?;
+                bail!("template_id more than templates count")
             }
             let text = &templates[template_id];
             bot.edit_message_text(dialogue.chat_id(), message_id, 
@@ -222,7 +222,7 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
         },
         Nothing => {},
         callback => {
-            Err(format!("invalid callback on changing state: {:?}", callback))?;
+            bail!("invalid callback on changing state: {:?}", callback)
         }
     }
     Ok(())
@@ -230,8 +230,8 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
 
 async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage, started_bots: StartedBots) -> FSMResult {
     use CallbackResponse::*;
-    let data = callback.data.as_ref().ok_or("cannot invoke data from callback")?;
-    let message_id = callback.message.ok_or("cannot invoke message_id from callback")?.id;
+    let data = callback.data.as_ref().ok_or(anyhow!("cannot invoke data from callback"))?;
+    let message_id = callback.message.ok_or(anyhow!("cannot invoke message_id from callback"))?.id;
     match CallbackResponse::from_mst_text(data.as_str())? {
         Select(id, name) =>  {
             dialogue.update(State::Changing(id, name.clone())).await?;
@@ -254,7 +254,7 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
         },
         callback => {
             bot.edit_message_text(dialogue.chat_id(), message_id, "<Неактуально>").await?;
-            Err(format!("invalid callback on common state: {:?}", callback))?;
+            bail!("invalid callback on common state: {:?}", callback)
         }
     }
     Ok(())
@@ -308,7 +308,7 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
 }
 
 async fn wait_token(msg: Message, bot: WBot, dialogue: MyDialogue) -> FSMResult {
-    let token = msg.text().ok_or("Empty token")?;
+    let token = msg.text().ok_or(anyhow!("Empty token"))?;
 
     match check_bot(token).await {
         Ok(me) => {
@@ -330,7 +330,7 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
             if let ForwardedFrom::Chat(chat) = forward.from {
                 if chat.is_channel() {
                     let channel = chat.id;
-                    let admin = msg.from.ok_or("Cannot invoke user for message (admin of bot)")?;
+                    let admin = msg.from.ok_or(anyhow!("Cannot invoke user for message (admin of bot)"))?;
                     let config = BulletinConfig { token, channel, 
                         admins: vec![(admin.id, make_username(&admin))], templates: vec![], tags: vec![]};
                     let id = db.save_config(config.clone()).await?;

@@ -14,7 +14,7 @@ type MyDialogue = Dialogue<State, MyStorage>;
 mod user;
 mod admin;
 
-pub type FSMResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+pub type FSMResult = Result<()>;
 pub type FSMHandler = Handler<'static, DependencyMap, FSMResult, teloxide::dispatching::DpHandlerDescription>;
 
 #[derive(Clone)]
@@ -66,7 +66,7 @@ async fn on_group_message_with_delete_aliens(msg: GroupMessage, bot: WBot, conf:
     };
     if is_alien {
         bot.delete_message(msg.chat_id, msg.id).await?;
-        Err("Автор комментария не подписан на канал, комментарий удален")?
+        bail!("Автор комментария не подписан на канал, комментарий удален")
     } else {
         on_group_message(msg, bot, conf).await
     }

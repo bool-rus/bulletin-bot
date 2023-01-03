@@ -116,7 +116,7 @@ async fn on_user_action(
             dialogue.exit().await?;
             let ids: Vec<_> = msgs.iter().map(|m|m.id.0).collect();
             let data = CallbackResponse::Remove(ids).to_msg_text()?;
-            let msg = msgs.first().ok_or("Published msgs is empty".to_owned())?;
+            let msg = msgs.first().ok_or(anyhow!("Published msgs is empty"))?;
             let url = msg.url().map(|u|u.to_string()).unwrap_or_default();
             let text = impls::make_message_link(conf.template(Tpl::Published), &url, None)
             .unwrap_or(conf.template(Tpl::Published).into());
