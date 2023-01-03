@@ -28,6 +28,36 @@
     },
     "query": "insert into tags (bot_id, name) values (?1, ?2)"
   },
+  "10aa5f2ce2d9224ddd5d644a9d73272902465e23794e6be681891c0fa93ca8e7": {
+    "describe": {
+      "columns": [
+        {
+          "name": "username",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "channel_name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "invite_link",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        true
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select username, channel_name, invite_link from bot_info where bot_id=?1"
+  },
   "1af64fe79ffff017999b768053c48820681c13ec2681c75402ec6d36e81b8acf": {
     "describe": {
       "columns": [
@@ -95,6 +125,16 @@
       }
     },
     "query": "select user, username from bot_admins where bot_id=?1"
+  },
+  "49d85f7b49a776276170a3f4fe7369ac481f48f1fc06f6b17b0cd87de4b68801": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "insert or replace into bot_info (bot_id, username, channel_name, invite_link) values (?1, ?2, ?3, ?4)"
   },
   "66d414efe3fb304226b100e9f6d98fb86dd8684cd2abe8ac57b2d4abf3146bdb": {
     "describe": {
@@ -167,16 +207,6 @@
       }
     },
     "query": "delete from bots where id=?1"
-  },
-  "92c50edddb3e981caa071f1ef5a9adfb937213910c51e370d535e8547c278463": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 3
-      }
-    },
-    "query": "insert or replace into bot_info (bot_id, username, channel_name) values (?1, ?2, ?3)"
   },
   "b40ff7d3004ad99b4d199ec575ecda3f93e735bd667d5f7141fad802385c376e": {
     "describe": {
@@ -261,29 +291,5 @@
       }
     },
     "query": "select i.bot_id, i.username from bot_info as i join bot_admins as a on i.bot_id=a.bot_id where a.user=?1"
-  },
-  "fa488f7f1c3da5677ff521a4d882fccb708dfd9ee777795ba35259b2bebd0001": {
-    "describe": {
-      "columns": [
-        {
-          "name": "username",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "channel_name",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "select username, channel_name from bot_info where bot_id=?1"
   }
 }

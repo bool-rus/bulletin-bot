@@ -252,13 +252,13 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
     let message_id = callback.message.ok_or(anyhow!("cannot invoke message_id from callback"))?.id;
     match CallbackResponse::from_mst_text(data.as_str())? {
         Select(id) =>  {
-            let (name,_) = db.get_info(id).await.ok_or(anyhow!("cannot invoke bot_info for id {id}"))?;
+            let name = db.get_info(id).await.ok_or(anyhow!("cannot invoke bot_info for id {id}"))?.username;
             dialogue.update(State::Changing(id, name.clone())).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Выбран бот @{}\nЧто будем делать?", name))
                 .reply_markup(markup_edit_bot()).await?;
         },
         Remove(id) => {
-            let (name,_) = db.get_info(id).await.unwrap_or_default();
+            let name = db.get_info(id).await.unwrap_or_default().username;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Удаляю бота @{}", name)).await?;
             stop_bot(started_bots, id).await;
             db.delete_config(id).await;

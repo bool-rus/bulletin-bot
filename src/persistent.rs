@@ -12,9 +12,20 @@ pub enum DBAction {
     AddListener(i64, Receiver<DBAction>),
     AddAdmin(i64, String),
     RemoveAdmin(i64),
-    SetInfo { name: String, channel_name: String },
+    SetInfo(BotInfo),
 }
 
+pub struct BotInfo {
+    pub username: String,
+    pub channel_name: String,
+    pub invite_link: Option<String>,
+}
+
+impl Default for BotInfo {
+    fn default() -> Self {
+        Self { username: "undefined".to_owned(), channel_name: "undefined".to_owned(), invite_link: None }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct BulletinConfig {
@@ -56,7 +67,7 @@ pub async fn worker() -> (Sender<DBAction>, Vec<(i64,BulletinConfig)>, Arc<Stora
                             DBAction::AddListener(..) => log::error!("Unexpected add listener"),
                             DBAction::AddAdmin(admin_id, username) => storage.add_admin(*id, admin_id, username).await,
                             DBAction::RemoveAdmin(admin_id) => storage.remove_admin(*id, admin_id).await,
-                            DBAction::SetInfo { name, channel_name } => storage.set_info(*id, name, channel_name).await,
+                            DBAction::SetInfo(bot_info) => storage.set_info(*id, bot_info).await,
                         };
                     }
                     Err(TryRecvError::Disconnected) => del_indexes.push(i),
@@ -129,17 +140,17 @@ impl Storage {
         sqlx::query!("delete from bot_admins where bot_id = ?1 and user = ?2", bot_id, admin_id)
         .execute(&mut conn).await.unwrap();
     }
-    pub async fn get_info(&self, bot_id: i64) -> Option<(String, String)> {
+    pub async fn get_info(&self, bot_id: i64) -> Option<BotInfo> {
         let mut conn = self.0.acquire().await.unwrap();
-        sqlx::query!("select username, channel_name from bot_info where bot_id=?1", bot_id)
+        sqlx::query_as!(BotInfo, "select username, channel_name, invite_link from bot_info where bot_id=?1", bot_id)
             .fetch_optional(&mut conn).await.unwrap()
-            .map(|r|(r.username, r.channel_name))
     }
-    async fn set_info(&self, bot_id: i64, name: String, channel_name: String) {
+    async fn set_info(&self, bot_id: i64, bot_info: BotInfo) {
         let mut conn = self.0.acquire().await.unwrap();
+        let BotInfo{username, channel_name, invite_link} = bot_info;
         sqlx::query!(
-            "insert or replace into bot_info (bot_id, username, channel_name) values (?1, ?2, ?3)", 
-            bot_id, name, channel_name
+            "insert or replace into bot_info (bot_id, username, channel_name, invite_link) values (?1, ?2, ?3, ?4)", 
+            bot_id, username, channel_name, invite_link
         ).execute(&mut conn).await.unwrap();
     } 
     pub async fn get_bots(&self, admin_id: i64) -> Vec<(i64, String)> {

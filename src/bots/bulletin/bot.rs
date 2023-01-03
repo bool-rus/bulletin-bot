@@ -17,13 +17,19 @@ pub fn start(config: Config) -> ShutdownToken {
         let bot_username = bot.get_me().await.ok_or_log()
             .map(|me|me.username().to_owned())
             .unwrap_or("unknown".to_owned());
-        let channel_name = bot.get_chat(config.channel).await.ok_or_log()
-            .map(|chat|chat.title().map(ToOwned::to_owned)).flatten()
-            .unwrap_or("unknown".to_owned());
-        config.sender.send(crate::persistent::DBAction::SetInfo {
-            name: bot_username.to_owned(), 
+        let mut channel_name = "unknown".to_owned();
+        let mut invite_link = None;
+        if let Some(chat) = bot.get_chat(config.channel).await.ok_or_log() {
+            if let Some(title) = chat.title() {
+                channel_name = title.to_owned();
+            }
+            invite_link = chat.invite_link().map(|s|s.to_owned());
+        }
+        config.sender.send(persistent::DBAction::SetInfo( persistent::BotInfo {
+            username: bot_username.clone(), 
             channel_name,
-        }).ok_or_log();
+            invite_link,
+        })).ok_or_log();
 
         let set_cmd = bot.set_my_commands([
             BotCommand::new("/help", "Помощь"), 
