@@ -3,17 +3,17 @@ use teloxide::types::{ChatId, User, InputFile, ParseMode, InputMedia, InputMedia
 use teloxide::utils::markdown::*;
 
 
-fn make_ad_text(user: &User, ad: &Ad) -> String {
+fn make_ad_text(user: &User, ad: &Ad, conf: Conf) -> String {
     let user_id = user.id.0.try_into().unwrap();
     let user_link = format!("https://tg.com?{}", user_id);
     let user_link = link(&user_link, " ");
     let text = escape(&ad.text);
-    let price = bold(&format!("{} ₽", ad.price)); 
+    let price = bold(&format!("{} {}", ad.price, conf.template(Template::Currency)));
     let price = match ad.target {
-        Target::Buy => format!("\\#куплю за {}", price),
-        Target::Sell => format!("\\#продам за {}", price),
-        Target::Ask => "\\#вопрос".into(),
-        Target::Recommend => "\\#рекомендация".into(),
+        Target::Buy => format!("\\#{} {}", conf.template(Template::BuyText), price),
+        Target::Sell => format!("\\#{} {}", conf.template(Template::SellText), price),
+        Target::Ask => format!("\\#{}", conf.template(Template::AskText)),
+        Target::Recommend => format!("\\#{}", conf.template(Template::RecommendText)),
     };
     let full_name = escape(&user.full_name());
     let sign = user_mention(user_id, &full_name);
@@ -44,7 +44,7 @@ pub async fn send_ad(bot: WBot, conf: Conf, target_chat_id: ChatId, user_id: Use
         bail!("Пользователь не подписан на канал")
     };
     let user = chat_member.user;
-    let text = make_ad_text(&user, ad);
+    let text = make_ad_text(&user, ad, conf);
     let bot = bot.parse_mode(ParseMode::MarkdownV2);
     let mut photos: Vec<_> = ad.photos.iter().map(make_photo).collect();
     let msgs = if photos.is_empty() {

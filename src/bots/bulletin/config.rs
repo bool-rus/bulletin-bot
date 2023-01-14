@@ -104,6 +104,15 @@ pub enum Template {
     MuteCommand,
     RequestTarget,
     AdminsOnly,
+    Currency,
+    BuyText,
+    SellText,
+    AskText,
+    RecommendText,
+    WantBuy,
+    WantSell,
+    WantAsk,
+    WantRecommend,
 }
 
 impl Template {
@@ -136,6 +145,15 @@ impl Template {
         r[MuteCommand as usize]     = "!mute".into();
         r[RequestTarget as usize]   = "Цель объявления?".into();
         r[AdminsOnly as usize]      = "Хорошая попытка, но так могут только админы".into();
+        r[Currency as usize]                 = "₽".into();
+        r[BuyText as usize]         = "куплю за".into();
+        r[SellText as usize]        = "продам за".into();
+        r[AskText as usize]         = "вопрос".into();
+        r[RecommendText as usize]   = "рекомендация".into();
+        r[WantBuy as usize]         = "купить".into();
+        r[WantSell as usize]        = "продать".into();
+        r[WantAsk as usize]         = "спросить".into();
+        r[WantRecommend as usize]   = "порекомендовать".into();
         r
     }
 }

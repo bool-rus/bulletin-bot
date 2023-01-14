@@ -101,12 +101,12 @@ async fn on_user_action(
             bot.send_message(chat_id, conf.template(Tpl::RequestTarget))
             .reply_markup(InlineKeyboardMarkup::new( vec![
                 vec![
-                    callback("купить", CallbackResponse::Target(Target::Buy).to_msg_text().unwrap()),
-                    callback("продать", CallbackResponse::Target(Target::Sell).to_msg_text().unwrap()),
+                    callback(conf.template(Template::WantBuy), CallbackResponse::Target(Target::Buy).to_msg_text().unwrap()),
+                    callback(conf.template(Template::WantSell), CallbackResponse::Target(Target::Sell).to_msg_text().unwrap()),
                 ],
                 vec![
-                    callback("спросить", CallbackResponse::Target(Target::Ask).to_msg_text().unwrap()),
-                    callback("рекомендовать", CallbackResponse::Target(Target::Recommend).to_msg_text().unwrap()),
+                    callback(conf.template(Template::WantAsk), CallbackResponse::Target(Target::Ask).to_msg_text().unwrap()),
+                    callback(conf.template(Template::WantRecommend), CallbackResponse::Target(Target::Recommend).to_msg_text().unwrap()),
                 ]
             ])).await?;
         },
