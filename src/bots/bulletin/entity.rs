@@ -86,13 +86,13 @@ pub struct Signal {
 }
 
 impl Signal {
-    pub fn from_update(u: Update) -> Option<Self> {
+    pub fn from_update(u: Update, conf: Conf) -> Option<Self> {
         match u.kind {
             UpdateKind::Message(msg) | UpdateKind::EditedMessage(msg) => {
                 let chat_id = msg.chat.id;
                 let kind = if let MessageKind::Common(msg) = msg.kind {
                     let content = media_to_content(msg.media_kind)?;
-                    if let Some(cmd) = content.command() {
+                    if let Some(cmd) = content.command(conf.clone()) {
                         cmd.into()
                     } else {
                         SignalKind::Content(content)
@@ -146,20 +146,18 @@ impl GetChatId for Signal {
     }
 }
 
-impl FromStr for Command {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "/help" | "/start" => Ok(Self::Help),
-            "/create" | CREATE => Ok(Self::Create),
-            "/publish" | PUBLISH => Ok(Self::Publish),
-            "/ban" | BAN => Ok(Self::Ban),
-            "/unban" | UNBAN => Ok(Self::Unban),
-            ADD_ADMIN => Ok(Self::AddAdmin),
-            REMOVE_ADMIN => Ok(Self::RemoveAdmin),
-            _ => Err(())
-        }
+impl Command {
+    fn from_str(s: &str, conf: Conf) -> Option<Self> {
+        Some(match s {
+            "/help" | "/start" => Self::Help,
+            "/create" | CREATE => Self::Create,
+            "/publish" | PUBLISH => Self::Publish,
+            "/ban" | BAN => Self::Ban,
+            "/unban" | UNBAN => Self::Unban,
+            ADD_ADMIN => Self::AddAdmin,
+            REMOVE_ADMIN => Self::RemoveAdmin,
+            _ => return None
+        })
     }
 }
 
@@ -203,10 +201,10 @@ impl Content {
             _ => None
         }
     }
-    fn command(&self) -> Option<Command> {
+    fn command(&self, conf: Conf) -> Option<Command> {
         match self {
             Self::Text(txt) => {
-                Command::from_str(txt.text.as_str()).ok()
+                Command::from_str(txt.text.as_str(), conf)
             }
             _ => None
         }
