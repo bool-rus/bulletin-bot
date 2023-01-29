@@ -365,7 +365,7 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
                     let channel = chat.id;
                     let admin = msg.from.ok_or(anyhow!("Cannot invoke user for message (admin of bot)"))?;
                     let config = BulletinConfig { token, channel, 
-                        admins: vec![(admin.id, make_username(&admin))], templates: vec![], tags: vec![]};
+                        admins: vec![(admin.id, make_username(&admin))], templates: vec![], tags: vec![], flags: 0};
                     let id = db.save_config(config.clone()).await?;
                     start_bot(id, config, started_bots, sender);
                     dialogue.exit().await?;

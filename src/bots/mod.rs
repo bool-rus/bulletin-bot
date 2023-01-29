@@ -76,3 +76,27 @@ trait CallbackMessage : Sized + serde::Serialize + serde::de::DeserializeOwned {
         String::from_utf8(encoded).map_err(Into::into)
     }
 }
+
+
+pub mod flags {
+
+    pub type Flags = i32;
+
+    pub const ONLY_SUBSCRIBERS: Flags = 0b1;
+
+    pub trait FeatureFlags {
+        fn check_flag(&self, flag: Flags) -> bool;
+        fn set_flag(&mut self, flag: Flags);
+    }
+
+    impl FeatureFlags for i32 {
+        fn check_flag(&self, flag: Flags) -> bool {
+            *self & flag == *self
+        }
+
+        fn set_flag(&mut self, flag: Flags) {
+            let result = *self & flag;
+            *self = result;
+        }
+    }
+}

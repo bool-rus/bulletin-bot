@@ -4,6 +4,7 @@ use super::CONF;
 
 use strum::EnumCount;
 use teloxide::types::{UserId, ChatId, KeyboardButton, ReplyMarkup};
+use super::flags::*;
 
 use crate::{persistent::DBAction, impls::LoggableErrorResult, persistent::BulletinConfig};
 
@@ -14,6 +15,7 @@ pub struct Config {
     pub sender: crossbeam::channel::Sender<DBAction>,
     pub receiver: crossbeam::channel::Receiver<DBAction>,
     pub tags: Vec<String>,
+    flags: Flags,
     templates: [String; Template::COUNT],
     banned: Mutex<HashMap<UserId, String>>,
 }
@@ -64,11 +66,14 @@ impl Config {
     pub fn template(&self, template: Template) -> &str {
         self.templates[template as usize].as_str()
     }
+    pub fn only_subscribers(&self) -> bool {
+        self.flags.check_flag(ONLY_SUBSCRIBERS)
+    }
 }
 
 impl From<BulletinConfig> for Config {
     fn from(cfg: BulletinConfig) -> Self {
-        let BulletinConfig {token, channel, admins, templates, tags} = cfg;
+        let BulletinConfig {token, channel, admins, templates, tags, flags} = cfg;
         let (sender, receiver) = crossbeam::channel::unbounded();
         let admins = admins.into_iter().collect();
         Self {
@@ -80,6 +85,7 @@ impl From<BulletinConfig> for Config {
             banned: Mutex::new(HashMap::new()),
             templates: Template::create(templates),
             tags,
+            flags,
         }
     }
 }
@@ -145,7 +151,7 @@ impl Template {
         r[MuteCommand as usize]     = "!mute".into();
         r[RequestTarget as usize]   = "Цель объявления?".into();
         r[AdminsOnly as usize]      = "Хорошая попытка, но так могут только админы".into();
-        r[Currency as usize]                 = "₽".into();
+        r[Currency as usize]        = "₽".into();
         r[BuyText as usize]         = "куплю за".into();
         r[SellText as usize]        = "продам за".into();
         r[AskText as usize]         = "вопрос".into();

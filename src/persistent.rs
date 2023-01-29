@@ -34,6 +34,7 @@ pub struct BulletinConfig {
     pub admins: Vec<(UserId, String)>,
     pub templates: Vec<(usize, String)>,
     pub tags: Vec<String>,
+    pub flags: i32,
 }
 
 pub async fn worker() -> (Sender<DBAction>, Vec<(i64,BulletinConfig)>, Arc<Storage>) {
@@ -125,7 +126,7 @@ impl Storage {
             let admins = get_admins(&mut conn, id).await;
             let templates = get_templates(&mut conn, id).await;
             let tags = get_tags(&mut conn, id).await;
-            let conf = BulletinConfig{token: r.token, channel: ChatId(r.channel), admins, templates, tags};
+            let conf = BulletinConfig{token: r.token, channel: ChatId(r.channel), admins, templates, tags, flags: r.flags as i32};
             res.push((id,conf));
         }
         res
@@ -163,7 +164,7 @@ impl Storage {
     pub async fn get_config(&self, bot_id: i64) -> Option<BulletinConfig> {
         let mut conn = self.0.acquire().await.unwrap();
         let bot = sqlx::query!(
-            "select token, channel from bots where id=?1",
+            "select token, channel, flags from bots where id=?1",
             bot_id
         ).fetch_optional(&mut conn).await.unwrap()?;
         let admins = get_admins(&mut conn, bot_id).await;
@@ -176,6 +177,7 @@ impl Storage {
             admins,
             templates,
             tags,
+            flags: bot.flags as i32,
         };
         Some(config)
     }

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use super::*;
 use super::res::*;
 
@@ -147,7 +145,7 @@ impl GetChatId for Signal {
 }
 
 impl Command {
-    fn from_str(s: &str, conf: Conf) -> Option<Self> {
+    fn from_str(s: &str, _conf: Conf) -> Option<Self> {
         Some(match s {
             "/help" | "/start" => Self::Help,
             "/create" | CREATE => Self::Create,
