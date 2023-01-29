@@ -270,6 +270,16 @@
     },
     "query": "insert into bot_admins values (?1, ?2, ?3)"
   },
+  "e4b8beb8fee5e8b64f723879b700402e9a6090f304ac744727e2b9d78a588590": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "update bots set flags = ?1 where id = ?2"
+  },
   "e502cd4b6ca50e373ec42cdbe706a1ccd18dc8bf235e5621aed07e9a592039bc": {
     "describe": {
       "columns": [],

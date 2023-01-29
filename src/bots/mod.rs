@@ -86,17 +86,27 @@ pub mod flags {
 
     pub trait FeatureFlags {
         fn check_flag(&self, flag: Flags) -> bool;
-        fn set_flag(&mut self, flag: Flags);
+        fn toggle_flag(&mut self, flag: Flags);
     }
 
     impl FeatureFlags for i32 {
         fn check_flag(&self, flag: Flags) -> bool {
-            *self & flag == *self
+            *self | flag == *self
         }
 
-        fn set_flag(&mut self, flag: Flags) {
-            let result = *self & flag;
+        fn toggle_flag(&mut self, flag: Flags) {
+            let result = *self ^ flag;
             *self = result;
         }
+    }
+    
+    #[test]
+    fn test_flags() {
+        let mut f = 0b1001;
+        assert!(f.check_flag(0b1));
+        assert!(f.check_flag(0b1000));
+        f.toggle_flag(0b1);
+        f.toggle_flag(0b100);
+        assert_eq!(0b1100, f);
     }
 }

@@ -220,6 +220,10 @@ impl Storage {
             .into_iter().map(|r|UserId(r.user as u64))
             .collect()
     }
+    pub async fn update_flags(&self, bot_id: i64, flags: i32) {
+        sqlx::query!("update bots set flags = ?1 where id = ?2", flags, bot_id)
+            .execute(&mut self.0.acquire().await.unwrap()).await.unwrap();
+    }
 }
 
 

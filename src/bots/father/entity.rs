@@ -15,7 +15,10 @@ pub enum CallbackResponse {
     AddTag,
     RemoveTag,
     TagToRemove(String),
+    Options,
+    ToggleOption(i32),
     Back,
+    Save,
 }
 
 impl CallbackMessage for CallbackResponse {}
