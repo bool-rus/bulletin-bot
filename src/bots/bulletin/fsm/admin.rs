@@ -20,12 +20,13 @@ async fn on_action(
     conf: Conf,
 ) -> FSMResult {
     let chat_id = dialogue.chat_id();
+    use AdminAction::*;
     match action {
-        AdminAction::Ban => {
-            bot.send_message(chat_id, "пересылай публу от гавнюка").await?;
+        Ban => {
+            bot.send_message(chat_id, "пересылай публикацию злодея").await?;
             dialogue.update(State::WaitForward).await?;
         },
-        AdminAction::Unban => {
+        Unban => {
             let mut markup = InlineKeyboardMarkup::default();
             for (user_id, cause) in conf.banned_users() {
                 let name = bot.get_chat_member(conf.channel, user_id).await
@@ -38,16 +39,16 @@ async fn on_action(
             bot.send_message(dialogue.chat_id(), "Выбери, кого амнистировать").reply_markup(markup).await?;
             dialogue.update(State::WaitSelectBanned).await?;
         },
-        AdminAction::UserToUnban(user_id) => {
+        UserToUnban(user_id) => {
             conf.unban(user_id);
             bot.send_message(dialogue.chat_id(), "Разбанен").await?;
             dialogue.exit().await?;
         },
-        AdminAction::AddAdmin => {
+        AddAdmin => {
             bot.send_message(dialogue.chat_id(), "Пересылай сообщение от человека - сделаем его админом").await?;
             dialogue.update(State::WaitForwardForAdmin).await?;
         },
-        AdminAction::RemoveAdmin => {
+        RemoveAdmin => {
             let markup = InlineKeyboardMarkup::default().inline_keyboard(conf.admins().into_iter()
                 .map(|(id, name)|InlineKeyboardButton::callback(
                     name, 
@@ -57,10 +58,20 @@ async fn on_action(
             );
             bot.send_message(dialogue.chat_id(), "Выбери, кого разжаловать").reply_markup(markup).await?;
         }
-        AdminAction::AdminToRemove(u) => {
+        AdminToRemove(u) => {
             if let Some(name) = conf.remove_admin(u) {
                 bot.send_message(dialogue.chat_id(), format!("{name} больше не админ")).await?;
             }
+        },
+        ApproveSubscribe(user_id) => {
+            let chat_id = ChatId(user_id.0 as i64);
+            bot.approve_chat_join_request(conf.channel, user_id).await?;
+            bot.send_message(chat_id, conf.template(Template::JoinApproved)).await?;
+        }
+        DeclineSubscribe(user_id) => {
+            let chat_id = ChatId(user_id.0 as i64);
+            bot.decline_chat_join_request(conf.channel, user_id).await?;
+            bot.send_message(chat_id, conf.template(Template::JoinDeclined)).await?;
         }
     }
     Ok(())

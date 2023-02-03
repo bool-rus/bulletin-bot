@@ -69,6 +69,9 @@ impl Config {
     pub fn only_subscribers(&self) -> bool {
         self.flags.check_flag(ONLY_SUBSCRIBERS)
     }
+    pub fn approve_subscribe(&self) -> bool {
+        self.flags.check_flag(APPROVE_SUBSCRIBE)
+    }
 }
 
 impl From<BulletinConfig> for Config {
@@ -119,6 +122,10 @@ pub enum Template {
     WantSell,
     WantAsk,
     WantRecommend,
+    UserIsNotSubscriber,
+    SubscribeInfo,
+    JoinApproved,
+    JoinDeclined,
 }
 
 impl Template {
@@ -160,6 +167,10 @@ impl Template {
         r[WantSell as usize]        = "продать".into();
         r[WantAsk as usize]         = "спросить".into();
         r[WantRecommend as usize]   = "порекомендовать".into();
+        r[UserIsNotSubscriber as usize] = "Ты не с нами. Уходи".into();
+        r[SubscribeInfo as usize]   = "Напиши что-нибудь, сообщение будет переслано админу".into();
+        r[JoinApproved as usize]    = "Заявка принята".into();
+        r[JoinDeclined as usize]    = "Заявка отклонена".into();
         r
     }
 }

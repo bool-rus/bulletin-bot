@@ -18,6 +18,8 @@ pub enum CallbackResponse {
     AdminToRemove(UserId),
     AddTag(String, i32),
     RemoveTag(String, i32),
+    ApproveSubscribe(UserId),
+    DeclineSubscribe(UserId),
 }
 
 impl CallbackMessage for CallbackResponse {}
@@ -68,6 +70,8 @@ pub enum AdminAction {
     AddAdmin,
     RemoveAdmin,
     AdminToRemove(UserId),
+    ApproveSubscribe(UserId),
+    DeclineSubscribe(UserId),
 }
 
 #[derive(Clone, Debug)]
@@ -177,15 +181,20 @@ impl Into<SignalKind> for Command {
 impl Into<SignalKind> for CallbackResponse {
     fn into(self) -> SignalKind {
         use SignalKind as SK;
+        use CallbackResponse::*;
+        use UserAction as U;
+        use AdminAction as A;
         match self {
-            CallbackResponse::Yes => SK::UserAction(UserAction::Yes),
-            CallbackResponse::No => SK::UserAction(UserAction::No),
-            CallbackResponse::User(u) => SK::AdminAction(AdminAction::UserToUnban(u)),
-            CallbackResponse::AdminToRemove(u) => SK::AdminAction(AdminAction::AdminToRemove(u)),
-            CallbackResponse::Remove(msgs) => SK::UserAction(UserAction::Remove(msgs)),
-            CallbackResponse::Target(target) => SK::UserAction(UserAction::Target(target)),
-            CallbackResponse::AddTag(tag, msg_id) => SK::UserAction(UserAction::AddTag(tag, msg_id)),
-            CallbackResponse::RemoveTag(tag, msg_id) => SK::UserAction(UserAction::RemoveTag(tag, msg_id)),
+            Yes => SK::UserAction(U::Yes),
+            No => SK::UserAction(U::No),
+            User(u) => SK::AdminAction(A::UserToUnban(u)),
+            AdminToRemove(u) => SK::AdminAction(A::AdminToRemove(u)),
+            Remove(msgs) => SK::UserAction(U::Remove(msgs)),
+            Target(target) => SK::UserAction(U::Target(target)),
+            AddTag(tag, msg_id) => SK::UserAction(U::AddTag(tag, msg_id)),
+            RemoveTag(tag, msg_id) => SK::UserAction(U::RemoveTag(tag, msg_id)),
+            ApproveSubscribe(id) => SK::AdminAction(A::ApproveSubscribe(id)),
+            DeclineSubscribe(id) => SK::AdminAction(A::DeclineSubscribe(id)),
         }
     }
 }

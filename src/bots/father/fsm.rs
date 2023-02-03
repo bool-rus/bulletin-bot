@@ -8,7 +8,7 @@ use super::*;
 use super::WrappedBot as WBot;
 use super::entity::CallbackResponse;
 use crate::bots::bulletin::{Config as RunnableConfig, Template};
-use crate::bots::flags::{ONLY_SUBSCRIBERS, FeatureFlags};
+use crate::bots::flags::*;
 
 type MyDialogue = Dialogue<State, MyStorage>;
 pub type FSMResult = Result<()>;
@@ -189,6 +189,10 @@ fn markup_options(flags: flags::Flags) -> InlineKeyboardMarkup {
         vec![callback(
             format!("Только подписчики канала {}", status(ONLY_SUBSCRIBERS)),
             ToggleOption(ONLY_SUBSCRIBERS).to_msg_text().unwrap()
+        )],
+        vec![callback(
+            format!("Подписка через бота {}", status(APPROVE_SUBSCRIBE)),
+            ToggleOption(APPROVE_SUBSCRIBE).to_msg_text().unwrap()
         )],
         vec![callback("OK".to_owned(), Save.to_msg_text().unwrap())],
     ])
