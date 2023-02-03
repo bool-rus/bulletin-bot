@@ -215,7 +215,7 @@ impl Storage {
         get_tags(&mut self.0.acquire().await.unwrap(), bot_id).await
     }
     pub async fn all_admins(&self) -> Vec<UserId> {
-        sqlx::query!("select user from bot_admins")
+        sqlx::query!("select distinct user from bot_admins")
             .fetch_all(&mut self.0.acquire().await.unwrap()).await.unwrap()
             .into_iter().map(|r|UserId(r.user as u64))
             .collect()

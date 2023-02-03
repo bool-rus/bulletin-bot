@@ -1,23 +1,5 @@
 {
   "db": "SQLite",
-  "0108585a6df22a8bdec737a87a5829f6d0b036434ed6a9c1f9871cdcf85b2898": {
-    "describe": {
-      "columns": [
-        {
-          "name": "user",
-          "ordinal": 0,
-          "type_info": "Int64"
-        }
-      ],
-      "nullable": [
-        false
-      ],
-      "parameters": {
-        "Right": 0
-      }
-    },
-    "query": "select user from bot_admins"
-  },
   "0fbe53a461600adc23fee753657ea182702cc39d0e4e64e6c32a359a97a597ce": {
     "describe": {
       "columns": [],
@@ -213,6 +195,24 @@
       }
     },
     "query": "delete from bots where id=?1"
+  },
+  "9f4547d95e10e241a2eb592cd86a314d3ff36fbabfc279fb775e78431a908f37": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user",
+          "ordinal": 0,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "select distinct user from bot_admins"
   },
   "b40ff7d3004ad99b4d199ec575ecda3f93e735bd667d5f7141fad802385c376e": {
     "describe": {
