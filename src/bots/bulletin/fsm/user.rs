@@ -1,6 +1,6 @@
 use super::*;
 use config::Template as Tpl;
-use teloxide::types::MessageId;
+use teloxide::types::{MessageId, UpdateKind};
 
 const LINE_SIZE: usize = 3;
 
@@ -13,6 +13,30 @@ pub fn process_user(handler: FSMHandler) -> FSMHandler {
         dptree::filter_map(Signal::filter_user_action)
         .endpoint(on_user_action)
     )
+    .branch(teloxide::handler![State::Subscribing].endpoint(on_subscribe_request))
+}
+
+async fn on_subscribe_request(
+    bot: WBot,
+    dialogue: MyDialogue,
+    conf: Conf,
+    upd: Update,
+) -> FSMResult {
+    if let UpdateKind::Message(msg) = upd.kind {
+        dialogue.exit().await?;
+        let user_id = UserId(dialogue.chat_id().0 as u64);
+        let admins = conf.admins();
+        for (admin_id, _) in admins {
+            bot.forward_message(admin_id, dialogue.chat_id(), msg.id).await?;
+            bot.send_message(admin_id, "Тут человек хочет подписаться на канал. Пустить?").reply_markup(
+                InlineKeyboardMarkup::new(vec![vec![
+                    InlineKeyboardButton::callback("Да", CallbackResponse::ApproveSubscribe(user_id).to_msg_text().unwrap()),
+                    InlineKeyboardButton::callback("Нет", CallbackResponse::DeclineSubscribe(user_id).to_msg_text().unwrap()),
+                ]])
+            ).await?;
+        }
+    }
+    Ok(())
 }
 
 async fn on_price_waiting(
@@ -190,6 +214,25 @@ async fn on_publish(
     let user_id = UserId(u64::try_from(chat_id.0)?);
     match dialogue.get().await?.unwrap_or_default() {
         State::Filling(ad) => {
+            let chat_member = bot.get_chat_member(conf.channel, user_id).await?;
+            if conf.only_subscribers() && (chat_member.is_left() || chat_member.is_banned()) {
+                if conf.approve_subscribe() {
+                    let invite = bot.create_chat_invite_link(conf.channel)
+                        .creates_join_request(true)
+                        .await?;
+                    
+                    bot.send_message(dialogue.chat_id(), conf.template(Tpl::UserIsNotSubscriber)).reply_markup(
+                        InlineKeyboardMarkup::new(vec![vec![InlineKeyboardButton::url(
+                            "Подписаться", 
+                            invite.invite_link.as_str().try_into()?,
+                        )]])
+                    ).await?;
+                    return Ok(())
+                } else {
+                    bot.send_message(dialogue.chat_id(), conf.template(Tpl::UserIsNotSubscriber)).await?;
+                    bail!("Пользователь не подписан на канал");
+                }
+            };
             if let Err(e) = send_ad(bot.clone(), conf.clone(), chat_id, user_id, &ad).await {
                 log::error!("some err on crate ad: {:?}", e);
                 bot.send_message(chat_id, format!("Упс, что-то пошло не так: {}", e)).await?;
@@ -197,8 +240,8 @@ async fn on_publish(
             }
             bot.send_message(chat_id, conf.template(Tpl::IsAllCorrect))
             .reply_markup(InlineKeyboardMarkup::default().append_row(vec![
-                InlineKeyboardButton::callback("Да".to_owned(), CallbackResponse::Yes.to_msg_text()?),
-                InlineKeyboardButton::callback("Нет".to_owned(), CallbackResponse::No.to_msg_text()?),
+                InlineKeyboardButton::callback("Да".to_owned(), CallbackResponse::Yes.to_msg_text().unwrap()),
+                InlineKeyboardButton::callback("Нет".to_owned(), CallbackResponse::No.to_msg_text().unwrap()),
             ])).await?;
             dialogue.update(State::Preview(ad)).await?;
         },

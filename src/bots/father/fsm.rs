@@ -8,6 +8,7 @@ use super::*;
 use super::WrappedBot as WBot;
 use super::entity::CallbackResponse;
 use crate::bots::bulletin::{Config as RunnableConfig, Template};
+use crate::bots::flags::*;
 
 type MyDialogue = Dialogue<State, MyStorage>;
 pub type FSMResult = Result<()>;
@@ -42,6 +43,7 @@ pub fn bot_commands() -> Vec<BotCommand> {
     Command::bot_commands().into_iter().take(4).collect()
 }
 
+use super::flags::Flags;
 use crate::persistent::BulletinConfig; //TODO: надо разобраться с наименованиями
 
 #[derive(Clone, Debug)]
@@ -53,6 +55,7 @@ pub enum State {
     WaitText(i64, String, usize),
     UpdatingToken(i64, String),
     WaitTag(i64, String),
+    EditOptions(i64, String, Flags),
 }
 
 impl Default for State {
@@ -72,6 +75,7 @@ pub fn make_dialogue_handler() -> FSMHandler {
         .branch(handler!(WaitTag(bot_id,name)).endpoint(on_wait_tag))
         .branch(handler!(UpdatingToken(bot_id, name)).endpoint(on_update_token));
     let callback_handler = Update::filter_callback_query()
+        .branch(handler!(EditOptions(id,name,flags )).endpoint(on_edit_options))
         .branch(handler!(Changing(id, name)).endpoint(on_changing_callback))
         .endpoint(on_callback);
     dptree::entry().enter_dialogue::<Update, MyStorage, State>()
@@ -90,11 +94,12 @@ fn markup_edit_bot() -> InlineKeyboardMarkup {
     use CallbackResponse::*;
     let callback = InlineKeyboardButton::callback;
     InlineKeyboardMarkup::new(vec![
-        vec![callback("Перезапустить",      Restart.to_msg_text().unwrap()        )],
-        vec![callback("Изменить тексты",    EditTemplates.to_msg_text().unwrap()  )],
-        vec![callback("Добавить тег",       AddTag.to_msg_text().unwrap()         )],
-        vec![callback("Удалить тег",        RemoveTag.to_msg_text().unwrap()      )],
-        vec![callback("Обновить токен",     UpdateToken.to_msg_text().unwrap()    )],
+        vec![callback("Перезапустить",      Restart.to_msg_text().unwrap()      )],
+        vec![callback("Изменить тексты",    EditTemplates.to_msg_text().unwrap())],
+        vec![callback("Добавить тег",       AddTag.to_msg_text().unwrap()       )],
+        vec![callback("Удалить тег",        RemoveTag.to_msg_text().unwrap()    )],
+        vec![callback("Обновить токен",     UpdateToken.to_msg_text().unwrap()  )],
+        vec![callback("Опции",              Options.to_msg_text().unwrap()      )],
         vec![CONF.tip_button()],
     ])
 }
@@ -169,6 +174,56 @@ fn start_bot(id: i64, config: BulletinConfig, started_bots: StartedBots, sender:
     sender.send(DBAction::AddListener(id, receiver)).ok_or_log();
     started_bots.lock().unwrap().insert(id, token);
 }
+
+fn markup_options(flags: flags::Flags) -> InlineKeyboardMarkup {
+    use CallbackResponse::*;
+    let callback = InlineKeyboardButton::callback;
+    let status = |flag| {
+        if flags.check_flag(flag) {
+            "✅"
+        } else {
+            "☑️"
+        }
+    };
+    InlineKeyboardMarkup::new(vec![
+        vec![callback(
+            format!("Только подписчики канала {}", status(ONLY_SUBSCRIBERS)),
+            ToggleOption(ONLY_SUBSCRIBERS).to_msg_text().unwrap()
+        )],
+        vec![callback(
+            format!("Подписка через бота {}", status(APPROVE_SUBSCRIBE)),
+            ToggleOption(APPROVE_SUBSCRIBE).to_msg_text().unwrap()
+        )],
+        vec![callback("OK".to_owned(), Save.to_msg_text().unwrap())],
+    ])
+}
+
+async fn on_edit_options(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage, 
+    (bot_id, bot_name, mut flags): (i64, String, flags::Flags)
+) -> FSMResult {
+    use CallbackResponse::*;
+    let data = callback.data.as_ref().ok_or(anyhow!("cannot invoke data from callback"))?;
+    let message_id = callback.message.ok_or(anyhow!("cannot invoke message_id from callback"))?.id;
+    match CallbackResponse::from_mst_text(data.as_str())? {
+        ToggleOption(flag) => {
+            flags.toggle_flag(flag);
+            dialogue.update(State::EditOptions(bot_id, bot_name, flags)).await?;
+            bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_options(flags)).await?;
+        }
+        Save => {
+            db.update_flags(bot_id, flags).await;
+            dialogue.update(State::Changing(bot_id, bot_name.clone())).await?;
+            bot.edit_message_text(dialogue.chat_id(), message_id, 
+                format!("Настройки обновлены. Для вступления в силу требуется перезагрузка бота.\nВыбран бот @{}\nЧто будем делать?", bot_name)
+            ).reply_markup(markup_edit_bot()).await?;
+        }
+        callback => {
+            bail!("invalid callback on edit option state: {:?}", callback)
+        }
+    }
+    Ok(())
+}
+
 async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, db: DBStorage, started_bots: StartedBots,
     sender: Arc<Sender<DBAction>>, (bot_id, bot_name): (i64, String)
 ) -> FSMResult {
@@ -233,6 +288,12 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
             ).await?;
             bot.send_message(dialogue.chat_id(), format!("Выбран бот @{}\nЧто будем делать?", bot_name))
                 .reply_markup(markup_edit_bot()).await?;
+        }
+        Options => {
+            let cfg = db.get_config(bot_id).await.ok_or(anyhow!("bot with id {bot_id} not found"))?;
+            dialogue.update(State::EditOptions(bot_id, bot_name.clone(), cfg.flags)).await?;
+            bot.edit_message_text(dialogue.chat_id(), message_id, format!("Можешь настроить опции для бота {bot_name}"))
+                .reply_markup(markup_options(cfg.flags)).await?;
         }
         Nothing => {},
         Back => {
@@ -365,7 +426,7 @@ async fn wait_forward(msg: Message, bot: WBot, dialogue: MyDialogue, token: Stri
                     let channel = chat.id;
                     let admin = msg.from.ok_or(anyhow!("Cannot invoke user for message (admin of bot)"))?;
                     let config = BulletinConfig { token, channel, 
-                        admins: vec![(admin.id, make_username(&admin))], templates: vec![], tags: vec![]};
+                        admins: vec![(admin.id, make_username(&admin))], templates: vec![], tags: vec![], flags: 0};
                     let id = db.save_config(config.clone()).await?;
                     start_bot(id, config, started_bots, sender);
                     dialogue.exit().await?;

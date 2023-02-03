@@ -136,6 +136,36 @@
     },
     "query": "insert or replace into bot_info (bot_id, username, channel_name, invite_link) values (?1, ?2, ?3, ?4)"
   },
+  "5ca788f37b2cf4a1d66931937afaee6953c183b976f384adf3cf4c432cb2b5ab": {
+    "describe": {
+      "columns": [
+        {
+          "name": "token",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "channel",
+          "ordinal": 1,
+          "type_info": "Int64"
+        },
+        {
+          "name": "flags",
+          "ordinal": 2,
+          "type_info": "Int64"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select token, channel, flags from bots where id=?1"
+  },
   "66d414efe3fb304226b100e9f6d98fb86dd8684cd2abe8ac57b2d4abf3146bdb": {
     "describe": {
       "columns": [],
@@ -174,30 +204,6 @@
     },
     "query": "delete from tags where bot_id = ?1 and name = ?2"
   },
-  "7fd08d66434923847e980619868ded5f48a6dd8e316a03eec639278d3eeddffd": {
-    "describe": {
-      "columns": [
-        {
-          "name": "token",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "channel",
-          "ordinal": 1,
-          "type_info": "Int64"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "select token, channel from bots where id=?1"
-  },
   "88d588dd1bdf56d9e312248e27a3d4a4281905cc898345b1bad910bc08928afc": {
     "describe": {
       "columns": [],
@@ -225,9 +231,15 @@
           "name": "channel",
           "ordinal": 2,
           "type_info": "Int64"
+        },
+        {
+          "name": "flags",
+          "ordinal": 3,
+          "type_info": "Int64"
         }
       ],
       "nullable": [
+        false,
         false,
         false,
         false
@@ -257,6 +269,16 @@
       }
     },
     "query": "insert into bot_admins values (?1, ?2, ?3)"
+  },
+  "e4b8beb8fee5e8b64f723879b700402e9a6090f304ac744727e2b9d78a588590": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "update bots set flags = ?1 where id = ?2"
   },
   "e502cd4b6ca50e373ec42cdbe706a1ccd18dc8bf235e5621aed07e9a592039bc": {
     "describe": {

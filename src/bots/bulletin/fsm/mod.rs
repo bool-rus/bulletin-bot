@@ -1,5 +1,6 @@
+use teloxide::dispatching::dialogue::Storage;
 use teloxide::payloads::{SendMessageSetters, RestrictChatMemberSetters};
-use teloxide::types::{ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId, ChatPermissions};
+use teloxide::types::{ParseMode, InlineKeyboardMarkup, InlineKeyboardButton, UserId, ChatPermissions, UpdateKind, ChatJoinRequest};
 
 use self::admin::process_admin;
 use self::user::process_user;
@@ -28,6 +29,7 @@ pub enum State {
     WaitCause(UserId),
     WaitSelectBanned,
     WaitForwardForAdmin,
+    Subscribing,
 }
 
 impl Default for State {
@@ -45,10 +47,30 @@ pub fn make_dialogue_handler() -> FSMHandler {
     let group_handler = dptree::filter_map(GroupMessage::from_update)
         .endpoint(on_group_message_with_delete_aliens);
     dptree::entry()
+    .branch(dptree::filter_map(filter_join_request).endpoint(on_join_request))
     .branch(dptree::filter(filter_private).chain(private_handler))
     .branch(group_handler)
 }
 
+fn filter_join_request(upd: Update) -> Option<ChatJoinRequest> {
+    if let UpdateKind::ChatJoinRequest(jr) = upd.kind {
+        Some(jr)
+    } else {
+        None
+    }
+}
+
+async fn on_join_request(
+    bot: WBot,
+    storage: Arc<MyStorage>,
+    conf: Conf,
+    jr: ChatJoinRequest,
+) -> FSMResult {
+    let chat_id = ChatId(jr.from.id.0 as i64);
+    storage.update_dialogue(chat_id, State::Subscribing).await?;
+    bot.send_message(chat_id, conf.template(Template::SubscribeInfo)).await?;
+    Ok(())
+}
 
 fn filter_admin(upd: Update, conf: Conf) -> bool {
     upd.user().map(|user|conf.is_admin(&user.id)).unwrap_or(false)
@@ -64,7 +86,7 @@ async fn on_group_message_with_delete_aliens(msg: GroupMessage, bot: WBot, conf:
         let chat_member = bot.get_chat_member(conf.channel, author).await?;
         chat_member.is_left() || chat_member.is_banned()
     };
-    if is_alien {
+    if is_alien && conf.only_subscribers() {
         bot.delete_message(msg.chat_id, msg.id).await?;
         bail!("Автор комментария не подписан на канал, комментарий удален")
     } else {

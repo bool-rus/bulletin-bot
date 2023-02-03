@@ -4,6 +4,7 @@ use super::CONF;
 
 use strum::EnumCount;
 use teloxide::types::{UserId, ChatId, KeyboardButton, ReplyMarkup};
+use super::flags::*;
 
 use crate::{persistent::DBAction, impls::LoggableErrorResult, persistent::BulletinConfig};
 
@@ -14,6 +15,7 @@ pub struct Config {
     pub sender: crossbeam::channel::Sender<DBAction>,
     pub receiver: crossbeam::channel::Receiver<DBAction>,
     pub tags: Vec<String>,
+    flags: Flags,
     templates: [String; Template::COUNT],
     banned: Mutex<HashMap<UserId, String>>,
 }
@@ -64,11 +66,17 @@ impl Config {
     pub fn template(&self, template: Template) -> &str {
         self.templates[template as usize].as_str()
     }
+    pub fn only_subscribers(&self) -> bool {
+        self.flags.check_flag(ONLY_SUBSCRIBERS)
+    }
+    pub fn approve_subscribe(&self) -> bool {
+        self.flags.check_flag(APPROVE_SUBSCRIBE)
+    }
 }
 
 impl From<BulletinConfig> for Config {
     fn from(cfg: BulletinConfig) -> Self {
-        let BulletinConfig {token, channel, admins, templates, tags} = cfg;
+        let BulletinConfig {token, channel, admins, templates, tags, flags} = cfg;
         let (sender, receiver) = crossbeam::channel::unbounded();
         let admins = admins.into_iter().collect();
         Self {
@@ -80,6 +88,7 @@ impl From<BulletinConfig> for Config {
             banned: Mutex::new(HashMap::new()),
             templates: Template::create(templates),
             tags,
+            flags,
         }
     }
 }
@@ -113,6 +122,10 @@ pub enum Template {
     WantSell,
     WantAsk,
     WantRecommend,
+    UserIsNotSubscriber,
+    SubscribeInfo,
+    JoinApproved,
+    JoinDeclined,
 }
 
 impl Template {
@@ -145,7 +158,7 @@ impl Template {
         r[MuteCommand as usize]     = "!mute".into();
         r[RequestTarget as usize]   = "Цель объявления?".into();
         r[AdminsOnly as usize]      = "Хорошая попытка, но так могут только админы".into();
-        r[Currency as usize]                 = "₽".into();
+        r[Currency as usize]        = "₽".into();
         r[BuyText as usize]         = "куплю за".into();
         r[SellText as usize]        = "продам за".into();
         r[AskText as usize]         = "вопрос".into();
@@ -154,6 +167,10 @@ impl Template {
         r[WantSell as usize]        = "продать".into();
         r[WantAsk as usize]         = "спросить".into();
         r[WantRecommend as usize]   = "порекомендовать".into();
+        r[UserIsNotSubscriber as usize] = "Ты не с нами. Уходи".into();
+        r[SubscribeInfo as usize]   = "Напиши что-нибудь, сообщение будет переслано админу".into();
+        r[JoinApproved as usize]    = "Заявка принята".into();
+        r[JoinDeclined as usize]    = "Заявка отклонена".into();
         r
     }
 }
