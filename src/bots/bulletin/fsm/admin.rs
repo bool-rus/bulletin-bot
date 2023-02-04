@@ -18,6 +18,7 @@ async fn on_action(
     dialogue: MyDialogue,
     action: AdminAction,
     conf: Conf,
+    upd: Update,
 ) -> FSMResult {
     let chat_id = dialogue.chat_id();
     use AdminAction::*;
@@ -67,12 +68,25 @@ async fn on_action(
             let chat_id = ChatId(user_id.0 as i64);
             bot.approve_chat_join_request(conf.channel, user_id).await?;
             bot.send_message(chat_id, conf.template(Template::JoinApproved)).await?;
+            update_request_message(bot, upd, true).await?;
         }
         DeclineSubscribe(user_id) => {
             let chat_id = ChatId(user_id.0 as i64);
             bot.decline_chat_join_request(conf.channel, user_id).await?;
             bot.send_message(chat_id, conf.template(Template::JoinDeclined)).await?;
+            update_request_message(bot, upd, false).await?;
         }
+    }
+    Ok(())
+}
+
+async fn update_request_message(bot: WBot, upd: Update, approved: bool) -> FSMResult {
+    let text = if approved { "Запрос принят" } else { "Запрос отклонен" };
+    if let UpdateKind::CallbackQuery(q) = upd.kind {
+        let msg = q.message.ok_or(anyhow!["Cannot invoke message from callback query"])?;
+        bot.edit_message_text(msg.chat.id, msg.id, text).await?;
+    } else {
+        bail!("Expects callback query, but not")
     }
     Ok(())
 }
