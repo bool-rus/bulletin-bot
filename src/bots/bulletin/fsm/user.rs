@@ -120,6 +120,7 @@ async fn on_user_action(
             ).await?;
         },
         UserAction::Create => {
+            check_is_member(bot.clone(), conf.clone(), chat_id).await?;
             dialogue.update(State::ActionWaiting).await?;
             let callback = InlineKeyboardButton::callback;
             bot.send_message(chat_id, conf.template(Tpl::RequestTarget))
@@ -205,6 +206,28 @@ async fn delete_msgs(bot: &WBot, ids: Vec<i32>, conf: &Conf) -> FSMResult {
     Ok(())
 }
 
+async fn check_is_member(bot: WBot, conf: Conf, chat_id: ChatId) -> FSMResult {
+    let user_id = UserId(u64::try_from(chat_id.0)?);
+    let chat_member = bot.get_chat_member(conf.channel, user_id).await?;
+    if conf.only_subscribers() && (chat_member.is_left() || chat_member.is_banned()) {
+        if conf.approve_subscribe() {
+            let invite = bot.create_chat_invite_link(conf.channel)
+                .creates_join_request(true)
+                .await?;     
+            bot.send_message(chat_id, conf.template(Tpl::UserIsNotSubscriber)).reply_markup(
+                InlineKeyboardMarkup::new(vec![vec![InlineKeyboardButton::url(
+                    "Подписаться", 
+                    invite.invite_link.as_str().try_into()?,
+                )]])
+            ).await?;
+        } else {
+            bot.send_message(chat_id, conf.template(Tpl::UserIsNotSubscriber)).await?;
+        }
+        bail!("Пользователь не подписан на канал");
+    };
+    Ok(())
+}
+
 async fn on_publish(
     bot: WBot,
     conf: Conf,
@@ -214,25 +237,6 @@ async fn on_publish(
     let user_id = UserId(u64::try_from(chat_id.0)?);
     match dialogue.get().await?.unwrap_or_default() {
         State::Filling(ad) => {
-            let chat_member = bot.get_chat_member(conf.channel, user_id).await?;
-            if conf.only_subscribers() && (chat_member.is_left() || chat_member.is_banned()) {
-                if conf.approve_subscribe() {
-                    let invite = bot.create_chat_invite_link(conf.channel)
-                        .creates_join_request(true)
-                        .await?;
-                    
-                    bot.send_message(dialogue.chat_id(), conf.template(Tpl::UserIsNotSubscriber)).reply_markup(
-                        InlineKeyboardMarkup::new(vec![vec![InlineKeyboardButton::url(
-                            "Подписаться", 
-                            invite.invite_link.as_str().try_into()?,
-                        )]])
-                    ).await?;
-                    return Ok(())
-                } else {
-                    bot.send_message(dialogue.chat_id(), conf.template(Tpl::UserIsNotSubscriber)).await?;
-                    bail!("Пользователь не подписан на канал");
-                }
-            };
             if let Err(e) = send_ad(bot.clone(), conf.clone(), chat_id, user_id, &ad).await {
                 log::error!("some err on crate ad: {:?}", e);
                 bot.send_message(chat_id, format!("Упс, что-то пошло не так: {}", e)).await?;
