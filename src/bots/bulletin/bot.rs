@@ -56,11 +56,9 @@ struct StoppableErrorHandler(StopToken);
 impl ErrorHandler<RequestError> for StoppableErrorHandler  {
     fn handle_error(self: Arc<Self>, error: RequestError) -> futures_util::future::BoxFuture<'static, ()> {
         log::error!("{}", error.to_string());
-        if let RequestError::Api(teloxide::ApiError::Unknown(text)) = error {
-            if text.to_lowercase() == "unauthorized" {
-                self.0.stop();
-                log::info!("Bot stopped");
-            }
+        if let RequestError::Api(teloxide::ApiError::NotFound) = error {
+            self.0.stop();
+            log::info!("Bot stopped");
         }
         Box::pin(async {})
     }
