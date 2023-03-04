@@ -168,6 +168,36 @@
     },
     "query": "select token, channel, flags from bots where id=?1"
   },
+  "5dd9611f6ef78b2d3b86c62b24f4bb272c7afc83630b7568597549222be7e879": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user_id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "cause",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select user_id, name, cause from banned where bot_id=?1"
+  },
   "66d414efe3fb304226b100e9f6d98fb86dd8684cd2abe8ac57b2d4abf3146bdb": {
     "describe": {
       "columns": [],
@@ -333,29 +363,5 @@
       }
     },
     "query": "select i.bot_id, i.username from bot_info as i join bot_admins as a on i.bot_id=a.bot_id where a.user=?1"
-  },
-  "eda2c84266bddbaf6d91952562ef95863cf165e0fc02f1c8209bcb9cd46e4742": {
-    "describe": {
-      "columns": [
-        {
-          "name": "user_id",
-          "ordinal": 0,
-          "type_info": "Int64"
-        },
-        {
-          "name": "cause",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "select user_id, cause from banned where bot_id=?1"
   }
 }

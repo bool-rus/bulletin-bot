@@ -6,7 +6,7 @@ use strum::EnumCount;
 use teloxide::types::{UserId, ChatId, KeyboardButton, ReplyMarkup};
 use super::flags::*;
 
-use crate::{persistent::DBAction, impls::LoggableErrorResult, persistent::BulletinConfig};
+use crate::{persistent::DBAction, impls::LoggableErrorResult, persistent::{BulletinConfig, BanInfo}};
 
 pub struct Config {
     pub token: String, 
@@ -17,7 +17,7 @@ pub struct Config {
     pub tags: Vec<String>,
     flags: Flags,
     templates: [String; Template::COUNT],
-    banned: Mutex<HashMap<UserId, String>>,
+    banned: Mutex<HashMap<UserId, BanInfo>>,
 }
 
 impl Config {
@@ -44,22 +44,22 @@ impl Config {
     pub fn admins(&self) -> Vec<(UserId, String)> {
         self.admins.lock().unwrap().iter().map(|(k,v)|(*k, v.clone())).collect()
     }
-    pub fn ban(&self, user_id: UserId, cause: String) {
+    pub fn ban(&self, user_id: UserId, info: BanInfo) {
         self.sender.send(DBAction::Ban { 
             id: user_id.0 as i64, 
-            name: "UNKNOWN".to_string(), 
-            cause: cause.clone(),
+            name: info.name.clone(), 
+            cause: info.cause.clone(),
         }).ok_or_log();
-        self.banned.lock().unwrap().insert(user_id, cause);
+        self.banned.lock().unwrap().insert(user_id, info);
     }
     pub fn unban(&self, user_id: UserId) {
         self.sender.send(DBAction::Unban(user_id.0 as i64)).ok_or_log();
         self.banned.lock().unwrap().remove(&user_id);
     }
-    pub fn banned_users(&self) -> Vec<(UserId, String)> {
+    pub fn banned_users(&self) -> Vec<(UserId, BanInfo)> {
         self.banned.lock().unwrap().iter().map(|(k,v)|(k.clone(),v.clone())).collect()
     }
-    pub fn is_banned(&self, user_id: &UserId) -> Option<String> {
+    pub fn is_banned(&self, user_id: &UserId) -> Option<BanInfo> {
         self.banned.lock().unwrap().get(user_id).cloned()
     }
     pub fn is_admin(&self, user_id: &UserId) -> bool {

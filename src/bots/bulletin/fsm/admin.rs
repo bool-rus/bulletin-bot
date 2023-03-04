@@ -1,5 +1,7 @@
 use teloxide::handler;
 
+use crate::persistent::BanInfo;
+
 use super::*;
 
 pub fn process_admin(handler: FSMHandler) -> FSMHandler {
@@ -29,11 +31,8 @@ async fn on_action(
         },
         Unban => {
             let mut markup = InlineKeyboardMarkup::default();
-            for (user_id, cause) in conf.banned_users() {
-                let name = bot.get_chat_member(conf.channel, user_id).await
-                .ok().map( |u|format!("{} {}", u.user.first_name, u.user.last_name.unwrap_or_default() ))
-                .unwrap_or(format!("[{}]", user_id));
-                let text = format!("{} ({})", name, cause);
+            for (user_id, BanInfo {name, cause}) in conf.banned_users() {
+                let text = format!("{name} ({cause})");
                 let data = CallbackResponse::User(user_id).to_msg_text()?;
                 markup = markup.append_row(vec![InlineKeyboardButton::callback(text, data)]);
             }
@@ -113,7 +112,11 @@ async fn on_wait_cause(
     conf: Conf,
 ) -> FSMResult {
     if let Content::Text(text) = content {
-        conf.ban(user_id, text.text);
+        let name = bot.get_chat_member(conf.channel, user_id).await
+            .ok().map( |u|format!("{} {}", u.user.first_name, u.user.last_name.unwrap_or_default() ))
+            .unwrap_or(format!("[{}]", user_id));
+        let info = BanInfo {name, cause: text.text};
+        conf.ban(user_id, info);
         bot.send_message(dialogue.chat_id(), "Забанен").await?;
         dialogue.exit().await?;
     } else {

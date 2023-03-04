@@ -108,8 +108,8 @@ async fn on_user_action(
 ) -> FSMResult {
     let chat_id = dialogue.chat_id();
     let user_id = UserId(u64::try_from(chat_id.0)?);
-    if let Some(cause) = conf.is_banned(&user_id) {
-        bot.send_message(chat_id, format!("Ты в бане. Причина: {}", cause)).await?;
+    if let Some(info) = conf.is_banned(&user_id) {
+        bot.send_message(chat_id, format!("Ты в бане. Причина: {}", info.cause)).await?;
         dialogue.exit().await?;
         return Ok(())
     }

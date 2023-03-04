@@ -17,6 +17,11 @@ pub enum DBAction {
     Unban(i64),
 }
 
+#[derive(Debug, Clone)]
+pub struct BanInfo {
+    pub name: String,
+    pub cause: String,
+}
 
 pub struct BotInfo {
     pub username: String,
@@ -35,7 +40,7 @@ pub struct BulletinConfig {
     pub token: String,
     pub channel: ChatId,
     pub admins: Vec<(UserId, String)>,
-    pub banned: Vec<(UserId, String)>,
+    pub banned: Vec<(UserId, BanInfo)>,
     pub templates: Vec<(usize, String)>,
     pub tags: Vec<String>,
     pub flags: i32,
@@ -265,10 +270,10 @@ async fn get_admins(conn: &mut Conn, bot_id: i64) -> Vec<(UserId, String)> {
         .collect()
 }
 
-async fn get_banned(conn: &mut Conn, bot_id: i64) -> Vec<(UserId, String)> {
-    sqlx::query!("select user_id, cause from banned where bot_id=?1", bot_id)
+async fn get_banned(conn: &mut Conn, bot_id: i64) -> Vec<(UserId, BanInfo)> {
+    sqlx::query!("select user_id, name, cause from banned where bot_id=?1", bot_id)
         .fetch_all(conn).await.unwrap()
-        .into_iter().map(|r|(UserId(r.user_id as u64), r.cause))
+        .into_iter().map(|r|(UserId(r.user_id as u64), BanInfo{name: r.name, cause: r.cause}))
         .collect()
 }
 
