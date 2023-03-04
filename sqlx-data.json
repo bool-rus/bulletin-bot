@@ -1,5 +1,15 @@
 {
   "db": "SQLite",
+  "055dfadf5f9f3b857e40ccee5aa75a680470f6bbb9fe462ee1d93fc70f8ff315": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "delete from banned where bot_id=?1 and user_id=?2"
+  },
   "0fbe53a461600adc23fee753657ea182702cc39d0e4e64e6c32a359a97a597ce": {
     "describe": {
       "columns": [],
@@ -63,6 +73,16 @@
       }
     },
     "query": "select text_id, text from bot_template where bot_id=?1"
+  },
+  "1afc7255d0c1a33843dc9f3d22f5671805c3a6aa86100116e602dd0e1928278f": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "insert into banned (bot_id, user_id, name, cause) values (?1, ?2, ?3, ?4)"
   },
   "1eb5b780ded996bb43dd041cbe19f4015f2d06dc73d2e98246bc542f12a50c4c": {
     "describe": {
@@ -313,5 +333,29 @@
       }
     },
     "query": "select i.bot_id, i.username from bot_info as i join bot_admins as a on i.bot_id=a.bot_id where a.user=?1"
+  },
+  "eda2c84266bddbaf6d91952562ef95863cf165e0fc02f1c8209bcb9cd46e4742": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user_id",
+          "ordinal": 0,
+          "type_info": "Int64"
+        },
+        {
+          "name": "cause",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select user_id, cause from banned where bot_id=?1"
   }
 }

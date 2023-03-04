@@ -13,7 +13,10 @@ pub enum DBAction {
     AddAdmin(i64, String),
     RemoveAdmin(i64),
     SetInfo(BotInfo),
+    Ban{id: i64, name: String, cause: String},
+    Unban(i64),
 }
+
 
 pub struct BotInfo {
     pub username: String,
@@ -32,6 +35,7 @@ pub struct BulletinConfig {
     pub token: String,
     pub channel: ChatId,
     pub admins: Vec<(UserId, String)>,
+    pub banned: Vec<(UserId, String)>,
     pub templates: Vec<(usize, String)>,
     pub tags: Vec<String>,
     pub flags: i32,
@@ -60,15 +64,18 @@ pub async fn worker() -> (Sender<DBAction>, Vec<(i64,BulletinConfig)>, Arc<Stora
                 _ => {},
             };
             let mut del_indexes = Vec::new();
-            for (i, (r, id)) in receivers.iter_mut().enumerate() {
+            for (i, (r, bot_id)) in receivers.iter().enumerate() {
                 match r.try_recv() {
                     Ok(action) => {
                         sleep = false;
+                        use DBAction::*;
                         match action {
-                            DBAction::AddListener(..) => log::error!("Unexpected add listener"),
-                            DBAction::AddAdmin(admin_id, username) => storage.add_admin(*id, admin_id, username).await,
-                            DBAction::RemoveAdmin(admin_id) => storage.remove_admin(*id, admin_id).await,
-                            DBAction::SetInfo(bot_info) => storage.set_info(*id, bot_info).await,
+                            AddListener(..) => log::error!("Unexpected add listener"),
+                            AddAdmin(admin_id, username) => storage.add_admin(*bot_id, admin_id, username).await,
+                            RemoveAdmin(admin_id) => storage.remove_admin(*bot_id, admin_id).await,
+                            SetInfo(bot_info) => storage.set_info(*bot_id, bot_info).await,
+                            Ban { id, name , cause} => storage.ban(*bot_id, id, name, cause).await,
+                            Unban(id) => storage.unban(*bot_id, id).await,
                         };
                     }
                     Err(TryRecvError::Disconnected) => del_indexes.push(i),
@@ -126,7 +133,13 @@ impl Storage {
             let admins = get_admins(&mut conn, id).await;
             let templates = get_templates(&mut conn, id).await;
             let tags = get_tags(&mut conn, id).await;
-            let conf = BulletinConfig{token: r.token, channel: ChatId(r.channel), admins, templates, tags, flags: r.flags as i32};
+            let banned = get_banned(&mut conn, id).await;
+            let conf = BulletinConfig{
+                token: r.token, 
+                channel: ChatId(r.channel), 
+                admins, banned, templates, tags, 
+                flags: r.flags as i32,
+            };
             res.push((id,conf));
         }
         res
@@ -140,6 +153,16 @@ impl Storage {
         let mut conn = self.0.acquire().await.unwrap();
         sqlx::query!("delete from bot_admins where bot_id = ?1 and user = ?2", bot_id, admin_id)
         .execute(&mut conn).await.unwrap();
+    }
+    async fn ban(&self, bot_id: i64, user_id: i64, name: String, cause: String) {
+        let mut conn = self.0.acquire().await.unwrap();
+        sqlx::query!("insert into banned (bot_id, user_id, name, cause) values (?1, ?2, ?3, ?4)", bot_id, user_id, name, cause)
+            .execute(&mut conn).await.unwrap();
+    }
+    async fn unban(&self, bot_id: i64, user_id: i64) {
+        let mut conn = self.0.acquire().await.unwrap();
+        sqlx::query!("delete from banned where bot_id=?1 and user_id=?2", bot_id, user_id)
+            .execute(&mut conn).await.unwrap();
     }
     pub async fn get_info(&self, bot_id: i64) -> Option<BotInfo> {
         let mut conn = self.0.acquire().await.unwrap();
@@ -170,11 +193,13 @@ impl Storage {
         let admins = get_admins(&mut conn, bot_id).await;
         let templates = get_templates(&mut conn, bot_id).await;
         let tags = get_tags(&mut conn, bot_id).await;
+        let banned = get_banned(&mut conn, bot_id).await;
 
         let config = BulletinConfig {
             token: bot.token, 
             channel: ChatId(bot.channel), 
             admins,
+            banned,
             templates,
             tags,
             flags: bot.flags as i32,
@@ -237,6 +262,13 @@ async fn get_admins(conn: &mut Conn, bot_id: i64) -> Vec<(UserId, String)> {
     sqlx::query!("select user, username from bot_admins where bot_id=?1", bot_id)
         .fetch_all(conn).await.unwrap()
         .into_iter().map(|r|(UserId(r.user as u64), r.username))
+        .collect()
+}
+
+async fn get_banned(conn: &mut Conn, bot_id: i64) -> Vec<(UserId, String)> {
+    sqlx::query!("select user_id, cause from banned where bot_id=?1", bot_id)
+        .fetch_all(conn).await.unwrap()
+        .into_iter().map(|r|(UserId(r.user_id as u64), r.cause))
         .collect()
 }
 

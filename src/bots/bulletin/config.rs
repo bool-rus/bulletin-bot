@@ -45,9 +45,15 @@ impl Config {
         self.admins.lock().unwrap().iter().map(|(k,v)|(*k, v.clone())).collect()
     }
     pub fn ban(&self, user_id: UserId, cause: String) {
+        self.sender.send(DBAction::Ban { 
+            id: user_id.0 as i64, 
+            name: "UNKNOWN".to_string(), 
+            cause: cause.clone(),
+        }).ok_or_log();
         self.banned.lock().unwrap().insert(user_id, cause);
     }
     pub fn unban(&self, user_id: UserId) {
+        self.sender.send(DBAction::Unban(user_id.0 as i64)).ok_or_log();
         self.banned.lock().unwrap().remove(&user_id);
     }
     pub fn banned_users(&self) -> Vec<(UserId, String)> {
@@ -76,16 +82,17 @@ impl Config {
 
 impl From<BulletinConfig> for Config {
     fn from(cfg: BulletinConfig) -> Self {
-        let BulletinConfig {token, channel, admins, templates, tags, flags} = cfg;
+        let BulletinConfig {token, channel, admins, banned, templates, tags, flags} = cfg;
         let (sender, receiver) = crossbeam::channel::unbounded();
         let admins = admins.into_iter().collect();
+        let banned = banned.into_iter().collect();
         Self {
             token,
             channel,
             sender,
             receiver,
             admins: Mutex::new(admins),
-            banned: Mutex::new(HashMap::new()),
+            banned: Mutex::new(banned),
             templates: Template::create(templates),
             tags,
             flags,
