@@ -1,4 +1,5 @@
 use teloxide::RequestError;
+use teloxide::stop::StopToken;
 use teloxide::types::{MessageKind, ForwardedFrom, BotCommand, Me, InlineKeyboardMarkup};
 use teloxide::dispatching::UpdateFilterExt;
 use teloxide::utils::command::BotCommands;
@@ -37,6 +38,8 @@ enum Command {
     //Теперь команды для гобального админа
     #[command(description = "уведомить пользователей о новых фичах")]
     PublishInfo(String),
+    #[command(description = "остановить приложение")]
+    Stop,
 }
 
 pub fn bot_commands() -> Vec<BotCommand> {
@@ -355,7 +358,7 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
 }
 
 
-async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage) -> FSMResult {
+async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage, stop_token: StopToken) -> FSMResult {
     if !matches!(cmd, Command::Help) {
         dialogue.exit().await?;
     }
@@ -397,6 +400,12 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
             }
             bot.send_message(dialogue.chat_id(), "Уведомление разослано").await?;
         },
+        Command::Stop => {
+            if CONF.is_global_admin(dialogue.user_id()) {
+                bot.send_message(dialogue.chat_id(), "Выключаюсь...").await.ok_or_log();
+                stop_token.stop();
+            }
+        }
     }
     Ok(())
 }
