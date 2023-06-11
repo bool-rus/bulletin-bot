@@ -110,6 +110,14 @@ async fn on_group_message(msg: GroupMessage, bot: WBot, conf: Conf) -> FSMResult
                 bot.send_message(msg.chat_id, conf.template(Template::AdminsOnly)).reply_to_message_id(msg.id).await?;
             }
         },
+        GroupMessageKind::Ban(user_id) => {
+            if conf.is_admin(&msg.author) {
+                log::info!("user with id {user_id} goes to ban");
+                bot.ban_chat_member(conf.channel, user_id).await?;
+            } else {
+                bot.send_message(msg.chat_id, conf.template(Template::AdminsOnly)).reply_to_message_id(msg.id).await?;
+            }
+        },
         GroupMessageKind::Dumb => {},
     }
     Ok(())

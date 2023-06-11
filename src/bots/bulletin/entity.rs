@@ -276,6 +276,7 @@ pub struct GroupMessage {
 pub enum GroupMessageKind {
     Comment {thread: i32, replied_author: UserId},
     Mute(UserId),
+    Ban(UserId),
     Dumb,
 }
 
@@ -301,9 +302,16 @@ impl GroupMessage {
                     let replied_content = media_to_content(media_kind)?;
                     if replied_author.is_telegram() { 
                         let replied_author = invoke_author(&replied_content)?;
-                        GroupMessageKind::Comment { thread, replied_author}
+                        //TODO: надо что-то придумать с дублированием
+                        if content.text()?.to_lowercase() == conf.template(config::Template::BanCommand).to_lowercase(){
+                            GroupMessageKind::Ban(replied_author)
+                        } else {
+                            GroupMessageKind::Comment { thread, replied_author}
+                        }
                     } else if content.text()?.to_lowercase() == conf.template(config::Template::MuteCommand).to_lowercase() {
                         GroupMessageKind::Mute(replied_author)
+                    } else if content.text()?.to_lowercase() == conf.template(config::Template::BanCommand).to_lowercase(){
+                        GroupMessageKind::Ban(replied_author)
                     } else {
                         None?
                     }

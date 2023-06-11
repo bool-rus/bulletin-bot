@@ -133,6 +133,7 @@ pub enum Template {
     SubscribeInfo,
     JoinApproved,
     JoinDeclined,
+    BanCommand,
 }
 
 impl Template {
@@ -178,6 +179,7 @@ impl Template {
         r[SubscribeInfo as usize]   = "Напиши что-нибудь, сообщение будет переслано админу".into();
         r[JoinApproved as usize]    = "Заявка принята".into();
         r[JoinDeclined as usize]    = "Заявка отклонена".into();
+        r[BanCommand as usize]      = "!ban".into();
         r
     }
 }
