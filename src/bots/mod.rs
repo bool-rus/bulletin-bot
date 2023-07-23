@@ -84,6 +84,7 @@ pub mod flags {
 
     pub const ONLY_SUBSCRIBERS: Flags = 0b1;
     pub const APPROVE_SUBSCRIBE: Flags = 0b10;
+    pub const WITHOUT_DONATE: Flags = 0b100;
 
     pub trait FeatureFlags {
         fn check_flag(&self, flag: Flags) -> bool;

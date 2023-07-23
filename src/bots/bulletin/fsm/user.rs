@@ -145,11 +145,12 @@ async fn on_user_action(
             let url = msg.url().map(|u|u.to_string()).unwrap_or_default();
             let text = impls::make_message_link(conf.template(Tpl::Published), &url, None)
             .unwrap_or(conf.template(Tpl::Published).into());
-            bot.send_message(chat_id, text).parse_mode(ParseMode::MarkdownV2)
-            .reply_markup(InlineKeyboardMarkup::default()
-                .append_row(vec![InlineKeyboardButton::callback(conf.template(Tpl::RemoveAd), data)])
-                .append_row(vec![CONF.tip_button()])
-            ).await?;
+            let mut markup = InlineKeyboardMarkup::default()
+                .append_row(vec![InlineKeyboardButton::callback(conf.template(Tpl::RemoveAd), data)]);
+            if conf.donate_enabled() {
+                markup = markup.append_row(vec![CONF.tip_button()]);
+            }
+            bot.send_message(chat_id, text).parse_mode(ParseMode::MarkdownV2).reply_markup(markup).await?;
         },
         UserAction::No => if let State::Preview(ad) = dialogue.get_or_default().await? {
             dialogue.update(State::Filling(ad)).await?;

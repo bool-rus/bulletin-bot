@@ -78,6 +78,9 @@ impl Config {
     pub fn approve_subscribe(&self) -> bool {
         self.flags.check_flag(APPROVE_SUBSCRIBE)
     }
+    pub fn donate_enabled(&self) -> bool {
+        !self.flags.check_flag(WITHOUT_DONATE)
+    }
 }
 
 impl From<BulletinConfig> for Config {
