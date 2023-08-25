@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "select text_id, text from bot_template where bot_id=?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "text_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "text",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "1af64fe79ffff017999b768053c48820681c13ec2681c75402ec6d36e81b8acf"
+}

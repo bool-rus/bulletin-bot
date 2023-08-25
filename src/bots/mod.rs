@@ -25,8 +25,8 @@ fn make_username(user: &teloxide::types::User) -> String {
     format!("{name}{last_name}{nick}")
 }
 
-pub async fn start() {
-    let (sender, configs, storage) = persistent::worker().await;
+pub async fn start() -> anyhow::Result<()> {
+    let (sender, configs, storage) = persistent::worker().await?;
     let started_bots = configs.into_iter().fold(HashMap::new(),|mut map, (id, conf)|{
         let conf: bulletin::Config = conf.into();
         let receiver = conf.receiver.clone();
@@ -40,6 +40,7 @@ pub async fn start() {
         Arc::new(Mutex::new(started_bots))
     ).await.ok_or_log();
     storage.close().await;
+    Ok(())
 }
 
 

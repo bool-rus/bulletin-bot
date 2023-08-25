@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "select i.bot_id, i.username from bot_info as i join bot_admins as a on i.bot_id=a.bot_id where a.user=?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "bot_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "username",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e739f377e50d5f577f143400975ba0e68289e4e74dc3b8fd85b5668d6e5384b2"
+}

@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "select username, channel_name, invite_link from bot_info where bot_id=?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "username",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "channel_name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "invite_link",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "10aa5f2ce2d9224ddd5d644a9d73272902465e23794e6be681891c0fa93ca8e7"
+}

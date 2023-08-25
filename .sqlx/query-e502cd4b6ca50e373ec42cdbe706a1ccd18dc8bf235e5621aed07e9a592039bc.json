@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "delete from bot_template where bot_id=?1 and text_id=?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "e502cd4b6ca50e373ec42cdbe706a1ccd18dc8bf235e5621aed07e9a592039bc"
+}

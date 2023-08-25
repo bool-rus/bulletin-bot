@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into bots (token, channel) values (?1, ?2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "66d414efe3fb304226b100e9f6d98fb86dd8684cd2abe8ac57b2d4abf3146bdb"
+}

@@ -13,6 +13,7 @@ use crate::bots::flags::*;
 
 type MyDialogue = Dialogue<State, MyStorage>;
 pub type FSMResult = Result<()>;
+pub type ARes<T> = Result<T>;
 pub type FSMHandler = Handler<'static, DependencyMap, FSMResult, teloxide::dispatching::DpHandlerDescription>;
 
 const HELP: &str = "Привет! Чтобы создать бота барахолки, используй команду /newbot";
@@ -116,14 +117,14 @@ async fn stop_bot(started_bots: StartedBots, id: i64) {
     }
 }
 
-async fn markup_edit_template(bot_id: i64, db: &DBStorage) -> InlineKeyboardMarkup {
-    let overrides = db.get_templates(bot_id).await;
+async fn markup_edit_template(bot_id: i64, db: &DBStorage) -> ARes<InlineKeyboardMarkup> {
+    let overrides = db.get_templates(bot_id).await?;
     let btns: Vec<_> = Template::create(overrides).into_iter().enumerate().map(|(i, text)|{
         vec![
             InlineKeyboardButton::callback(text, CallbackResponse::EditTemplate(i).to_msg_text().unwrap()),
         ]
     }).collect();
-    InlineKeyboardMarkup::new(btns)
+    Ok(InlineKeyboardMarkup::new(btns))
 }
 
 fn with_back_button(markup: InlineKeyboardMarkup) -> InlineKeyboardMarkup {
@@ -141,16 +142,16 @@ async fn on_wait_tag(bot: WBot, dialogue: MyDialogue, (bot_id, bot_name): (i64, 
         return Ok(())
     }
     log::info!("cb: {:?}", cb);
-    dialogue.update(State::Changing(bot_id, bot_name.clone())).await?;
-    db.add_tag(bot_id, text.to_string()).await;
+    db.add_tag(bot_id, text.to_string()).await?;
     bot.send_message(dialogue.chat_id(), format!("Тег добавлен (для вступления в силу нужен рестарт бота)\nВыбран бот @{}\nЧто будем делать?", bot_name))
         .reply_markup(markup_edit_bot()).await?;
+    dialogue.update(State::Changing(bot_id, bot_name.clone())).await?;
     Ok(())
 }
 
 async fn on_update_token(bot: WBot, dialogue: MyDialogue, (bot_id, bot_name): (i64, String), db: DBStorage, msg: Message) -> FSMResult {
     let token = msg.text().ok_or(anyhow!("No text on wait text"))?;
-    db.update_token(bot_id, token.to_owned()).await;
+    db.update_token(bot_id, token.to_owned()).await?;
     dialogue.update(State::Changing(bot_id, bot_name.clone())).await?;
     bot.send_message(
         dialogue.chat_id(), 
@@ -163,10 +164,10 @@ async fn on_wait_template(bot: WBot, dialogue: MyDialogue,
     (bot_id, name, template_id): (i64, String, usize), 
     msg: Message, db: DBStorage) -> FSMResult {
     let text = msg.text().ok_or(anyhow!("No text on wait text"))?;
-    dialogue.update(State::Changing(bot_id, name.clone())).await?;
-    db.add_template(bot_id, template_id, text.to_string()).await;
+    db.add_template(bot_id, template_id, text.to_string()).await?;
     bot.send_message(dialogue.chat_id(), format!("Текст заменен (для вступления в силу нужен рестарт бота)\nВыбран бот @{}\nЧто будем делать?", name))
         .reply_markup(markup_edit_bot()).await?;
+    dialogue.update(State::Changing(bot_id, name.clone())).await?;
     Ok(())
 }
 
@@ -214,7 +215,7 @@ async fn on_edit_options(bot: WBot, dialogue: MyDialogue, callback: CallbackQuer
             bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_options(flags)).await?;
         }
         Save => {
-            db.update_flags(bot_id, flags).await;
+            db.update_flags(bot_id, flags).await?;
             dialogue.update(State::Changing(bot_id, bot_name.clone())).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, 
                 format!("Настройки обновлены. Для вступления в силу требуется перезагрузка бота.\nВыбран бот @{}\nЧто будем делать?", bot_name)
@@ -237,7 +238,7 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
         Restart => {
             bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_load()).await?;
             stop_bot(started_bots.clone(), bot_id).await;
-            if let Some(saved_config) = db.get_config(bot_id).await {
+            if let Some(saved_config) = db.get_config(bot_id).await.ok() {
                 start_bot(bot_id, saved_config, started_bots, sender);
                 bot.edit_message_reply_markup(dialogue.chat_id(), message_id).reply_markup(markup_edit_bot()).await?;
             } else {
@@ -245,13 +246,13 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
             }
         },
         EditTemplates => {
-            let markup = with_back_button(markup_edit_template(bot_id, &db).await);
+            let markup = with_back_button(markup_edit_template(bot_id, &db).await?);
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Редактируем тексты для бота @{}",bot_name))
                 .reply_markup(markup).await?;
         },
         EditTemplate(template_id) => {
             dialogue.update(State::WaitText(bot_id, bot_name.clone(), template_id)).await?;
-            let templates = Template::create(db.get_templates(bot_id).await);
+            let templates = Template::create(db.get_templates(bot_id).await?);
             if template_id >= templates.len() {
                 bail!("template_id more than templates count")
             }
@@ -277,7 +278,7 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
                 .await?;
         },
         RemoveTag => {
-            let markup: Vec<_> = db.get_tags(bot_id).await.into_iter().map(|name|{
+            let markup: Vec<_> = db.get_tags(bot_id).await?.into_iter().map(|name|{
                 vec![InlineKeyboardButton::callback(name.clone(), TagToRemove(name).to_msg_text().unwrap())]
             }).collect();
             let markup = with_back_button(InlineKeyboardMarkup::new(markup));
@@ -285,7 +286,7 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
                 .reply_markup(markup).await?;
         },
         TagToRemove(tag) => {
-            db.delete_tag(bot_id, tag.clone()).await;
+            db.delete_tag(bot_id, tag.clone()).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, 
                 format!("Тег {} удален! Для вступления изменений в силу требуется перезагрузить бота", tag)
             ).await?;
@@ -293,7 +294,7 @@ async fn on_changing_callback(bot: WBot, dialogue: MyDialogue, callback: Callbac
                 .reply_markup(markup_edit_bot()).await?;
         }
         Options => {
-            let cfg = db.get_config(bot_id).await.ok_or(anyhow!("bot with id {bot_id} not found"))?;
+            let cfg = db.get_config(bot_id).await?;
             dialogue.update(State::EditOptions(bot_id, bot_name.clone(), cfg.flags)).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Можешь настроить опции для бота {bot_name}"))
                 .reply_markup(markup_options(cfg.flags)).await?;
@@ -316,7 +317,7 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
     let message_id = callback.message.ok_or(anyhow!("cannot invoke message_id from callback"))?.id;
     match CallbackResponse::from_mst_text(data.as_str())? {
         Select(id) =>  {
-            let name = db.get_info(id).await.ok_or(anyhow!("cannot invoke bot_info for id {id}"))?.username;
+            let name = db.get_info(id).await?.username;
             dialogue.update(State::Changing(id, name.clone())).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Выбран бот @{}\nЧто будем делать?", name))
                 .reply_markup(markup_edit_bot()).await?;
@@ -325,13 +326,13 @@ async fn on_callback(bot: WBot, dialogue: MyDialogue, callback: CallbackQuery, d
             let name = db.get_info(id).await.unwrap_or_default().username;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Удаляю бота @{}", name)).await?;
             stop_bot(started_bots, id).await;
-            db.delete_config(id).await;
+            db.delete_config(id).await?;
             bot.edit_message_text(dialogue.chat_id(), message_id, format!("Удален бот @{}", name)).await?;
         },
         ResetTemplate => {
             if let Some(State::WaitText(bot_id, name, template_id)) = dialogue.get().await? {
                 dialogue.update(State::Changing(bot_id, name.clone())).await?;
-                db.delete_template(bot_id, template_id).await;
+                db.delete_template(bot_id, template_id).await?;
                 bot.send_message(dialogue.chat_id(), format!("Текст сброшен (для вступления в силу нужен рестарт бота)\nВыбран бот @{}\nЧто будем делать?", name))
                     .reply_markup(markup_edit_bot()).await?;
             }
@@ -371,7 +372,7 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
             bot.send_message(dialogue.chat_id(), SEND_TOKEN).await?;
         },
         Command::MyBots => {
-            let bots = db.get_bots(dialogue.chat_id().0).await;
+            let bots = db.get_bots(dialogue.chat_id().0).await?;
             let buttons: Vec<_> = {
                 let mut buttons = Vec::with_capacity(bots.len());
                 for (id, name) in bots {
@@ -380,10 +381,10 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
                 buttons
             };
             let markup = InlineKeyboardMarkup::new(buttons);
-            bot.send_message(dialogue.chat_id(), CHOOSE_THE_BOT).reply_markup(markup).await.unwrap();
+            bot.send_message(dialogue.chat_id(), CHOOSE_THE_BOT).reply_markup(markup).await?;
         },
         Command::Delete => {
-            let bots = db.get_bots(dialogue.chat_id().0).await;
+            let bots = db.get_bots(dialogue.chat_id().0).await?;
             let buttons: Vec<_> = {
                 let mut buttons = Vec::with_capacity(bots.len());
                 for (id, name) in bots {
@@ -392,10 +393,10 @@ async fn on_command(cmd: Command, bot: WBot, dialogue: MyDialogue, db: DBStorage
                 buttons
             };
             let markup = InlineKeyboardMarkup::new(buttons);
-            bot.send_message(dialogue.chat_id(), "Выбери бота для удаления").reply_markup(markup).await.unwrap();
+            bot.send_message(dialogue.chat_id(), "Выбери бота для удаления").reply_markup(markup).await?;
         }
         Command::PublishInfo(text) => if CONF.is_global_admin(dialogue.user_id()) {
-            for user_id in db.all_admins().await {
+            for user_id in db.all_admins().await? {
                 bot.send_message(user_id, &text).await.ok_or_log();
             }
             bot.send_message(dialogue.chat_id(), "Уведомление разослано").await?;

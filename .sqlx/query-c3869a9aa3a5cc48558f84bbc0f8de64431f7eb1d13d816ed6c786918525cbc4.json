@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into bot_admins values (?1, ?2, ?3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "c3869a9aa3a5cc48558f84bbc0f8de64431f7eb1d13d816ed6c786918525cbc4"
+}

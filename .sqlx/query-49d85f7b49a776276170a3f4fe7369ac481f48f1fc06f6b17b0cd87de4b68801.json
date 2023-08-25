@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert or replace into bot_info (bot_id, username, channel_name, invite_link) values (?1, ?2, ?3, ?4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "49d85f7b49a776276170a3f4fe7369ac481f48f1fc06f6b17b0cd87de4b68801"
+}

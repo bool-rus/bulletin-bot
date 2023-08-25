@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "select distinct user from bot_admins",
+  "describe": {
+    "columns": [
+      {
+        "name": "user",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9f4547d95e10e241a2eb592cd86a314d3ff36fbabfc279fb775e78431a908f37"
+}

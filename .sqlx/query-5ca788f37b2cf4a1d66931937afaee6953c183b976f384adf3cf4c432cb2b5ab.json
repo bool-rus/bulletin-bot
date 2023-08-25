@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "select token, channel, flags from bots where id=?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "token",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "channel",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "flags",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5ca788f37b2cf4a1d66931937afaee6953c183b976f384adf3cf4c432cb2b5ab"
+}

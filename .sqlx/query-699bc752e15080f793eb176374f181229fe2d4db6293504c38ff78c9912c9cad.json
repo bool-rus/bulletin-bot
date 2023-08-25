@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "select name from tags where bot_id = ?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "name",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "699bc752e15080f793eb176374f181229fe2d4db6293504c38ff78c9912c9cad"
+}

@@ -12,7 +12,7 @@ pub static CONF: GlobalConfig = GlobalConfig::parse();
 #[tokio::main]
 async fn main() {
     init_logger();
-    bots::start().await;
+    bots::start().await.unwrap();
 }
 
 fn init_logger() {
@@ -36,8 +36,8 @@ pub struct GlobalConfig {
     #[arg(long, env="TIP_URL")]
     pub tip_url: String,
     ///path to db file
-    #[arg(long="db", default_value="bulletin-configs.db")]
-    db_path: String,
+    #[arg(long="db", default_value="sqlite://bulletin-configs.db")]
+    db_url: String,
 }
 
 #[ctor::ctor]
@@ -46,5 +46,5 @@ pub static CONF: GlobalConfig = GlobalConfig {
     token: "test".to_string(),
     admin: 0,
     tip_url: "https://example.com".to_string(),
-    db_path: "test.db".to_string(),
+    db_url: "test.db".to_string(),
 };

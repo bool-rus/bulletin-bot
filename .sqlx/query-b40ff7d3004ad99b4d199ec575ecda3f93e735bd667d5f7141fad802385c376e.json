@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "select * from bots",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "token",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "channel",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "flags",
+        "ordinal": 3,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b40ff7d3004ad99b4d199ec575ecda3f93e735bd667d5f7141fad802385c376e"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update bots set token = ?1 where id = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "bd6e8bdeb2803d792ac71ca061c29ce79da130ac3dfebadd8e0522a4e847c4f1"
+}

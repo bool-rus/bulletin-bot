@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update bots set flags = ?1 where id = ?2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "e4b8beb8fee5e8b64f723879b700402e9a6090f304ac744727e2b9d78a588590"
+}

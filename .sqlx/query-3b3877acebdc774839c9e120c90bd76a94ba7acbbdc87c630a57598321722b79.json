@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "select user, username from bot_admins where bot_id=?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "user",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "username",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "3b3877acebdc774839c9e120c90bd76a94ba7acbbdc87c630a57598321722b79"
+}

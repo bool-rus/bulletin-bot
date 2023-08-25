@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into tags (bot_id, name) values (?1, ?2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "0fbe53a461600adc23fee753657ea182702cc39d0e4e64e6c32a359a97a597ce"
+}

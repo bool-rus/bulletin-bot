@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into bot_template (bot_id, text_id, text) values (?1, ?2, ?3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "2b92cca7c070c1217147feb3e44536f5167b9ae435c985185015943537d9cbdc"
+}

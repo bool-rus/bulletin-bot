@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into banned (bot_id, user_id, name, cause) values (?1, ?2, ?3, ?4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "1afc7255d0c1a33843dc9f3d22f5671805c3a6aa86100116e602dd0e1928278f"
+}

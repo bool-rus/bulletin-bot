@@ -4,12 +4,15 @@ version = "0.2.1"
 authors = ["Serge Barinov <bool.rus@gmail.com>"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+strip = true
+codegen-units = 1
+panic = "abort"
 
 [dependencies]
 tokio = { version = "1.8", features = ["rt-multi-thread", "macros", "sync"]}
 teloxide = { version = "0.12", features = ["macros", "ctrlc_handler", "rustls"], default-features = false }
-sqlx = { version = "0.6", features = [ "runtime-tokio-rustls", "sqlite", "offline"] }
+sqlx = { version = "0.7.1", features = [ "runtime-tokio-rustls", "sqlite"] }
 
 log = "0.4"
 simplelog = "0.12"
@@ -27,3 +30,4 @@ futures-util = "0.3"
 clap = { version = "4.0.26", features = ["derive", "env"] }
 ctor = "0.1.26"
 anyhow = "1.0.68"
+async-trait = "0.1.73"

@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "select user_id, name, cause from banned where bot_id=?1",
+  "describe": {
+    "columns": [
+      {
+        "name": "user_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "cause",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5dd9611f6ef78b2d3b86c62b24f4bb272c7afc83630b7568597549222be7e879"
+}
