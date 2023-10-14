@@ -35,6 +35,7 @@ async fn on_subscribe_request(
                 ]])
             ).await?;
         }
+        bot.send_message(dialogue.chat_id(), conf.template(Tpl::RequestForwarded)).await?;
     }
     Ok(())
 }

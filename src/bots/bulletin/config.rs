@@ -137,6 +137,7 @@ pub enum Template {
     JoinApproved,
     JoinDeclined,
     BanCommand,
+    RequestForwarded,
 }
 
 impl Template {
@@ -183,6 +184,7 @@ impl Template {
         r[JoinApproved as usize]    = "Заявка принята".into();
         r[JoinDeclined as usize]    = "Заявка отклонена".into();
         r[BanCommand as usize]      = "!ban".into();
+        r[RequestForwarded as usize]= "Спасибо, скоро рассмотрим вашу заявку. Повторно отправлять не нужно.".into();
         r
     }
 }
