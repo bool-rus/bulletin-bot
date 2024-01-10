@@ -1,14 +1,15 @@
 use super::*;
 use teloxide::types::{ChatId, User, InputFile, ParseMode, InputMedia, InputMediaPhoto, UserId};
 use teloxide::utils::markdown::*;
-
+use num_format::{Locale, ToFormattedString};
 
 fn make_ad_text(user: &User, ad: &Ad, conf: Conf) -> String {
     let user_id = user.id.0.try_into().unwrap();
     let user_link = format!("https://tg.com?{}", user_id);
     let user_link = link(&user_link, " ");
     let text = escape(&ad.text);
-    let price = bold(&format!("{} {}", ad.price, conf.template(Template::Currency)));
+    let price = ad.price.to_formatted_string(&Locale::ru);
+    let price = bold(&format!("{} {}", price, conf.template(Template::Currency)));
     let price = match ad.target {
         Target::Buy => format!("\\#{} {}", conf.template(Template::BuyText), price),
         Target::Sell => format!("\\#{} {}", conf.template(Template::SellText), price),
