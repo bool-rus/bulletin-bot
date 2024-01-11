@@ -88,7 +88,8 @@ async fn on_group_message_with_delete_aliens(msg: GroupMessage, bot: WBot, conf:
     };
     if is_alien && conf.only_subscribers() {
         bot.delete_message(msg.chat_id, msg.id).await?;
-        bail!("Автор комментария не подписан на канал, комментарий удален")
+        log::info!("Автор комментария не подписан на канал, комментарий удален");
+        Ok(())
     } else {
         on_group_message(msg, bot, conf).await
     }
@@ -113,7 +114,8 @@ async fn on_group_message(msg: GroupMessage, bot: WBot, conf: Conf) -> FSMResult
         GroupMessageKind::Ban(user_id) => {
             if conf.is_admin(&msg.author) {
                 log::info!("user with id {user_id} goes to ban");
-                bot.ban_chat_member(conf.channel, user_id).await?;
+                bot.ban_chat_member(conf.channel, user_id).await.ok_or_log();
+                bot.ban_chat_member(msg.chat_id, user_id).await.ok_or_log();
             } else {
                 bot.send_message(msg.chat_id, conf.template(Template::AdminsOnly)).reply_to_message_id(msg.id).await?;
             }

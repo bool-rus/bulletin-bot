@@ -299,8 +299,8 @@ impl GroupMessage {
                 let content = media_to_content(media_kind)?;
                 if let MessageKind::Common(MessageCommon{from, media_kind, ..}) = reply_to_message.kind {
                     let replied_author = from?.id;
-                    let replied_content = media_to_content(media_kind)?;
                     if replied_author.is_telegram() { 
+                        let replied_content = media_to_content(media_kind)?;
                         let replied_author = invoke_author(&replied_content)?;
                         //TODO: надо что-то придумать с дублированием
                         if content.text()?.to_lowercase() == conf.template(config::Template::BanCommand).to_lowercase(){
@@ -313,7 +313,7 @@ impl GroupMessage {
                     } else if content.text()?.to_lowercase() == conf.template(config::Template::BanCommand).to_lowercase(){
                         GroupMessageKind::Ban(replied_author)
                     } else {
-                        None?
+                        GroupMessageKind::Dumb
                     }
                 } else {
                     log::error!("cannot invoke replied message: {:?}", reply_to_message.kind);
