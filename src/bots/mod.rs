@@ -16,7 +16,7 @@ use anyhow::{anyhow, Result, bail};
 type DBStorage = std::sync::Arc<crate::persistent::Storage>;
 type StartedBots = Arc<Mutex<HashMap<i64, ShutdownToken>>>;
 
-type WrappedBot = Bot;
+type WrappedBot = teloxide::adaptors::Throttle<Bot>;
 
 fn make_username(user: &teloxide::types::User) -> String {
     let name = user.first_name.as_str();

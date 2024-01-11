@@ -2,11 +2,16 @@ use std::sync::Arc;
 use crate::impls::LoggableErrorResult;
 
 use super::*;
-use teloxide::{types::BotCommand, dispatching::{ShutdownToken, update_listeners::UpdateListener}, error_handlers::ErrorHandler, RequestError, stop::StopToken};
+use teloxide::stop::StopToken;
+use teloxide::RequestError;
+use teloxide::error_handlers::ErrorHandler;
+use teloxide::dispatching::update_listeners::UpdateListener;
+use teloxide::dispatching::ShutdownToken;
+use teloxide::types::BotCommand;
 
 pub fn start(config: Config) -> ShutdownToken {
     let config = Arc::new(config);
-    let bot = Bot::new(config.token.as_str());
+    let bot = Bot::new(config.token.as_str()).throttle(Default::default());
     let storage = MyStorage::new();
     let mut dispatcher = Dispatcher::builder(bot.clone(), fsm::make_dialogue_handler())
         .dependencies(dptree::deps![storage, config.clone()])
