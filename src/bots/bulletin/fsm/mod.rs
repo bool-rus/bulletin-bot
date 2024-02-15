@@ -67,6 +67,10 @@ async fn on_join_request(
     jr: ChatJoinRequest,
 ) -> FSMResult {
     let chat_id = ChatId(jr.from.id.0 as i64);
+    if let Some(persistent::BanInfo{cause,..}) = conf.is_banned(&jr.from.id) {
+        bot.send_message(chat_id, format!("Ты в бане. Причина: {cause}")).await?;
+        return Ok(())
+    }
     storage.update_dialogue(chat_id, State::Subscribing).await?;
     bot.send_message(chat_id, conf.template(Template::SubscribeInfo)).await?;
     Ok(())

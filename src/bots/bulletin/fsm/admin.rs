@@ -75,6 +75,15 @@ async fn on_action(
             bot.send_message(chat_id, conf.template(Template::JoinDeclined)).await?;
             update_request_message(bot, upd, false).await?;
         }
+        BanSubscribe(user_id) => {
+            if let UpdateKind::CallbackQuery(q) = upd.kind {
+                let msg = q.message.ok_or(anyhow!["Cannot invoke message from callback query"])?;
+                bot.edit_message_text(msg.chat.id, msg.id, "Пиши причину бана").await?;
+                dialogue.update(State::WaitCause(user_id)).await?;
+            } else {
+                bail!("Expects callback query, but not")
+            }
+        }
     }
     Ok(())
 }

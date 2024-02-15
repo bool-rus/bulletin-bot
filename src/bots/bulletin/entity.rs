@@ -20,6 +20,7 @@ pub enum CallbackResponse {
     RemoveTag(String, i32),
     ApproveSubscribe(UserId),
     DeclineSubscribe(UserId),
+    BanSubscribe(UserId),
 }
 
 impl CallbackMessage for CallbackResponse {}
@@ -72,6 +73,7 @@ pub enum AdminAction {
     AdminToRemove(UserId),
     ApproveSubscribe(UserId),
     DeclineSubscribe(UserId),
+    BanSubscribe(UserId),
 }
 
 #[derive(Clone, Debug)]
@@ -195,6 +197,7 @@ impl Into<SignalKind> for CallbackResponse {
             RemoveTag(tag, msg_id) => SK::UserAction(U::RemoveTag(tag, msg_id)),
             ApproveSubscribe(id) => SK::AdminAction(A::ApproveSubscribe(id)),
             DeclineSubscribe(id) => SK::AdminAction(A::DeclineSubscribe(id)),
+            BanSubscribe(id) => SK::AdminAction(A::BanSubscribe(id)),
         }
     }
 }
