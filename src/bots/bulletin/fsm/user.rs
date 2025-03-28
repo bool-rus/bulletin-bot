@@ -31,7 +31,7 @@ async fn on_subscribe_request(
             bot.forward_message(admin_id, dialogue.chat_id(), msg.id).await?;
             let chat = bot.get_chat(chat_id).await?;
             let msg = format!("Тут человек хочет вступить в {}. Пустить?", chat.title().unwrap_or("unknown"));
-            bot.send_message(admin_id, "Тут человек хочет подписаться на канал. Пустить?").reply_markup(
+            bot.send_message(admin_id, msg).reply_markup(
                 InlineKeyboardMarkup::new(vec![vec![
                     InlineKeyboardButton::callback("Да", CallbackResponse::ApproveSubscribe(user_id, chat_id).to_msg_text().unwrap()),
                     InlineKeyboardButton::callback("Нет", CallbackResponse::DeclineSubscribe(user_id).to_msg_text().unwrap()),

@@ -63,9 +63,9 @@ async fn on_action(
                 bot.send_message(dialogue.chat_id(), format!("{name} больше не админ")).await?;
             }
         },
-        ApproveSubscribe(user_id, chat_id) => {
+        ApproveSubscribe(user_id, subscription_chat) => {
             let chat_id = ChatId(user_id.0 as i64);
-            bot.approve_chat_join_request(chat_id, user_id).await?;
+            bot.approve_chat_join_request(subscription_chat, user_id).await?;
             bot.send_message(chat_id, conf.template(Template::JoinApproved)).await?;
             update_request_message(bot, upd, true).await?;
         }
