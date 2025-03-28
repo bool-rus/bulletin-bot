@@ -13,7 +13,7 @@ pub fn process_user(handler: FSMHandler) -> FSMHandler {
         dptree::filter_map(Signal::filter_user_action)
         .endpoint(on_user_action)
     )
-    .branch(teloxide::handler![State::Subscribing].endpoint(on_subscribe_request))
+    .branch(teloxide::handler![State::Subscribing(chat_id)].endpoint(on_subscribe_request))
 }
 
 async fn on_subscribe_request(
@@ -21,6 +21,7 @@ async fn on_subscribe_request(
     dialogue: MyDialogue,
     conf: Conf,
     upd: Update,
+    chat_id: ChatId
 ) -> FSMResult {
     if let UpdateKind::Message(msg) = upd.kind {
         dialogue.exit().await?;
@@ -28,11 +29,13 @@ async fn on_subscribe_request(
         let admins = conf.admins();
         for (admin_id, _) in admins {
             bot.forward_message(admin_id, dialogue.chat_id(), msg.id).await?;
-            bot.send_message(admin_id, "Тут человек хочет подписаться на канал. Пустить?").reply_markup(
+            let chat = bot.get_chat(chat_id).await?;
+            let msg = format!("Тут человек хочет вступить в {}. Пустить?", chat.title().unwrap_or("unknown"));
+            bot.send_message(admin_id, msg).reply_markup(
                 InlineKeyboardMarkup::new(vec![vec![
-                    InlineKeyboardButton::callback("Да", CallbackResponse::ApproveSubscribe(user_id).to_msg_text().unwrap()),
-                    InlineKeyboardButton::callback("Нет", CallbackResponse::DeclineSubscribe(user_id).to_msg_text().unwrap()),
-                    InlineKeyboardButton::callback("В бан", CallbackResponse::BanSubscribe(user_id).to_msg_text().unwrap()),
+                    InlineKeyboardButton::callback("Да", CallbackResponse::ApproveSubscribe(user_id, chat_id).to_msg_text().unwrap()),
+                    InlineKeyboardButton::callback("Нет", CallbackResponse::DeclineSubscribe(user_id, chat_id).to_msg_text().unwrap()),
+                    InlineKeyboardButton::callback("В бан", CallbackResponse::BanSubscribe(user_id, chat_id).to_msg_text().unwrap()),
                 ]])
             ).await?;
         }
