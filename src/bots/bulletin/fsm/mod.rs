@@ -29,7 +29,7 @@ pub enum State {
     WaitCause(UserId),
     WaitSelectBanned,
     WaitForwardForAdmin,
-    Subscribing,
+    Subscribing(ChatId),
 }
 
 impl Default for State {
@@ -71,7 +71,7 @@ async fn on_join_request(
         bot.send_message(chat_id, format!("Ты в бане. Причина: {cause}")).await?;
         return Ok(())
     }
-    storage.update_dialogue(chat_id, State::Subscribing).await?;
+    storage.update_dialogue(chat_id, State::Subscribing(jr.chat.id)).await?;
     bot.send_message(chat_id, conf.template(Template::SubscribeInfo)).await?;
     Ok(())
 }
