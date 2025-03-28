@@ -69,13 +69,15 @@ async fn on_action(
             bot.send_message(chat_id, conf.template(Template::JoinApproved)).await?;
             update_request_message(bot, upd, true).await?;
         }
-        DeclineSubscribe(user_id) => {
+        DeclineSubscribe(user_id, subscription_chat) => {
             let chat_id = ChatId(user_id.0 as i64);
-            bot.decline_chat_join_request(conf.channel, user_id).await?;
+            bot.decline_chat_join_request(subscription_chat, user_id).await?;
             bot.send_message(chat_id, conf.template(Template::JoinDeclined)).await?;
             update_request_message(bot, upd, false).await?;
         }
-        BanSubscribe(user_id) => {
+        BanSubscribe(user_id, subscription_chat) => {
+
+            bot.decline_chat_join_request(subscription_chat, user_id).await?;
             if let UpdateKind::CallbackQuery(q) = upd.kind {
                 let msg = q.message.ok_or(anyhow!["Cannot invoke message from callback query"])?;
                 bot.edit_message_text(msg.chat.id, msg.id, "Пиши причину бана").await?;

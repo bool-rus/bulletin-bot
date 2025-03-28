@@ -34,8 +34,8 @@ async fn on_subscribe_request(
             bot.send_message(admin_id, msg).reply_markup(
                 InlineKeyboardMarkup::new(vec![vec![
                     InlineKeyboardButton::callback("Да", CallbackResponse::ApproveSubscribe(user_id, chat_id).to_msg_text().unwrap()),
-                    InlineKeyboardButton::callback("Нет", CallbackResponse::DeclineSubscribe(user_id).to_msg_text().unwrap()),
-                    InlineKeyboardButton::callback("В бан", CallbackResponse::BanSubscribe(user_id).to_msg_text().unwrap()),
+                    InlineKeyboardButton::callback("Нет", CallbackResponse::DeclineSubscribe(user_id, chat_id).to_msg_text().unwrap()),
+                    InlineKeyboardButton::callback("В бан", CallbackResponse::BanSubscribe(user_id, chat_id).to_msg_text().unwrap()),
                 ]])
             ).await?;
         }
