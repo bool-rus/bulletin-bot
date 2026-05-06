@@ -3,6 +3,12 @@ name = "bulletin-bot"
 version = "0.2.3"
 authors = ["Serge Barinov <bool.rus@gmail.com>"]
 edition = "2021"
+license-file = "LICENSE"
+repository = "https://github.com/bool-rus/bulletin-bot"
+description = "Simple Bot for bulletins"
+
+[package.metadata.release]
+pre-release-commit-message = "Bump version [skip ci]"
 
 [profile.release]
 strip = true

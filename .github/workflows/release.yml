@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  release:
+    name: Create Release and Attach Artifact
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Современный экшен установки Rust вместо actions-rs/toolchain
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Get version from Cargo.toml
+        id: parse_version
+        run: |
+          VERSION=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Create Release and Upload Asset
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}   # передаётся через with, не env
+          tag_name: v${{ steps.parse_version.outputs.version }}
+          name: Release ${{ steps.parse_version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: target/release/bulletin-bot    # встроенная загрузка ассета
+
+      - name: Bump patch version (with skip ci)
+        run: |
+          cargo install cargo-release
+          cargo release patch --no-publish --no-push -x --no-confirm
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+
+      - name: Push version bump and tags
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: master
+          tags: true        # важно пушить теги
